@@ -71,6 +71,15 @@ type LogEntry struct {
 	Text string `json:"text"`
 }
 
+// Gain records one hex paying out on the most recent roll (for client
+// fly-to-player animations).
+type Gain struct {
+	Player   int    `json:"player"`
+	Resource string `json:"resource"`
+	N        int    `json:"n"`
+	Hex      int    `json:"hex"`
+}
+
 type Game struct {
 	Mu  sync.Mutex
 	Rng *rand.Rand
@@ -105,9 +114,10 @@ type Game struct {
 	LongestRoadLen    int
 	LargestArmyPlayer int
 
-	Trade  *TradeOffer
-	Winner int
-	Log    []LogEntry
+	Trade     *TradeOffer
+	Winner    int
+	Log       []LogEntry
+	LastGains []Gain // production from the most recent roll
 
 	Version int
 	Changed chan struct{} // signaled (non-blocking) on every state change
@@ -482,6 +492,7 @@ func (g *Game) roll(p *Player) error {
 	g.DiceA = g.Rng.IntN(6) + 1
 	g.DiceB = g.Rng.IntN(6) + 1
 	g.Rolled = true
+	g.LastGains = nil
 	total := g.DiceA + g.DiceB
 	g.logf("%s rolled %d", p.Name, total)
 	if total == 7 {
@@ -504,10 +515,11 @@ func (g *Game) roll(p *Player) error {
 
 // distribute hands out resources for a roll, honoring bank shortages:
 // if a resource runs short and more than one player would receive it,
-// nobody receives that resource.
+// nobody receives that resource. Per-hex gains are recorded in LastGains
+// so the client can animate cards flying to players.
 func (g *Game) distribute(total int) {
-	type due struct{ player, n int }
-	demand := map[string][]due{}
+	type entry struct{ player, n, hex int }
+	demand := map[string][]entry{}
 	for _, h := range g.Board.Hexes {
 		if h.Number != total || h.ID == g.Board.Robber || h.Terrain == Desert {
 			continue
@@ -521,37 +533,36 @@ func (g *Game) distribute(total int) {
 			if b.Type == "city" {
 				n = 2
 			}
-			found := false
-			for i := range demand[h.Terrain] {
-				if demand[h.Terrain][i].player == b.Player {
-					demand[h.Terrain][i].n += n
-					found = true
-				}
-			}
-			if !found {
-				demand[h.Terrain] = append(demand[h.Terrain], due{b.Player, n})
-			}
+			demand[h.Terrain] = append(demand[h.Terrain], entry{b.Player, n, h.ID})
 		}
 	}
-	for res, dues := range demand {
+	for res, entries := range demand {
 		tot := 0
-		for _, d := range dues {
-			tot += d.n
+		players := map[int]bool{}
+		for _, e := range entries {
+			tot += e.n
+			players[e.player] = true
 		}
-		if tot > g.Bank[res] {
-			if len(dues) > 1 {
-				g.logf("bank is out of %s — no one collects it", res)
+		if tot > g.Bank[res] && len(players) > 1 {
+			g.logf("bank is out of %s — no one collects it", res)
+			continue
+		}
+		totals := map[int]int{}
+		for _, e := range entries {
+			n := e.n
+			if n > g.Bank[res] {
+				n = g.Bank[res]
+			}
+			if n == 0 {
 				continue
 			}
-			dues[0].n = g.Bank[res]
+			g.Bank[res] -= n
+			g.Players[e.player].Resources[res] += n
+			g.LastGains = append(g.LastGains, Gain{Player: e.player, Resource: res, N: n, Hex: e.hex})
+			totals[e.player] += n
 		}
-		for _, d := range dues {
-			if d.n == 0 {
-				continue
-			}
-			g.Bank[res] -= d.n
-			g.Players[d.player].Resources[res] += d.n
-			g.logf("%s collects %d %s", g.Players[d.player].Name, d.n, res)
+		for pid, n := range totals {
+			g.logf("%s collects %d %s", g.Players[pid].Name, n, res)
 		}
 	}
 }
@@ -664,7 +675,7 @@ func (g *Game) canPlaceRoad(p *Player, e int) bool {
 			continue // opponent building blocks connection through this vertex
 		}
 		for _, e2 := range g.Board.Verts[v].Edges {
-			if e2 != e && g.RoadsE[e2] == p.ID {
+			if owner, ok := g.RoadsE[e2]; ok && e2 != e && owner == p.ID {
 				return true
 			}
 		}
@@ -704,7 +715,7 @@ func (g *Game) canPlaceSettlement(p *Player, v int) bool {
 		return false
 	}
 	for _, e := range g.Board.Verts[v].Edges {
-		if g.RoadsE[e] == p.ID {
+		if owner, ok := g.RoadsE[e]; ok && owner == p.ID {
 			return true
 		}
 	}

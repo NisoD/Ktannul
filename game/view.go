@@ -31,6 +31,7 @@ type View struct {
 	LegalCities      []int          `json:"legalCities,omitempty"`
 	BankRates        map[string]int `json:"bankRates,omitempty"`
 	DevDeckLeft      int            `json:"devDeckLeft"`
+	Gains            []Gain         `json:"gains,omitempty"`
 }
 
 type YouView struct {
@@ -92,6 +93,7 @@ func (g *Game) ViewFor(token string) *View {
 		Version:     g.Version,
 		SetupPlayer: -1,
 		DevDeckLeft: len(g.DevDeck),
+		Gains:       g.LastGains,
 	}
 	for _, pl := range g.Players {
 		v.Players = append(v.Players, PlayerView{

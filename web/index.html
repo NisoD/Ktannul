@@ -81,19 +81,28 @@
     border-bottom: 1px solid rgba(233,180,76,.18);
   }
   .pchip {
-    display: flex; flex-direction: column; gap: 2px; padding: 5px 9px;
+    display: flex; flex-direction: column; gap: 3px; padding: 6px 10px;
     border-radius: 10px; background: var(--panel2); border: 2px solid transparent;
+    border-left: 5px solid var(--pc, var(--panel2));
     font-size: 11px; white-space: nowrap; min-width: 88px;
+    box-shadow: 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.07);
   }
-  .pchip.turn { border-color: var(--gold); box-shadow: 0 0 10px rgba(233,180,76,.35); }
+  .pchip.turn {
+    border-color: var(--gold); border-left-color: var(--gold);
+    box-shadow: 0 0 16px rgba(233,180,76,.45), inset 0 0 10px rgba(233,180,76,.08);
+    background: linear-gradient(90deg, rgba(233,180,76,.10), var(--panel2));
+  }
   .pchip .nm { font-weight: 800; font-size: 12px; display: flex; align-items: center; gap: 5px; }
   .pchip .st { color: var(--muted); display: flex; gap: 7px; }
   .pchip .badges { color: var(--gold); font-size: 10px; height: 12px; font-weight: 800; }
 
   #status {
-    padding: 6px 44px 6px 12px; font-size: 14px; font-weight: 700; text-align: center;
-    background: #081720; flex-shrink: 0; display: flex; align-items: center;
-    justify-content: center; gap: 10px; min-height: 40px; position: relative;
+    padding: 6px 44px 6px 12px; font-size: 15px; font-weight: 700; text-align: center;
+    background: linear-gradient(180deg, #0d2433, #081720); flex-shrink: 0;
+    display: flex; align-items: center; letter-spacing: .3px;
+    justify-content: center; gap: 10px; min-height: 44px; position: relative;
+    border-bottom: 1px solid rgba(233,180,76,.22);
+    box-shadow: 0 4px 10px rgba(0,0,0,.35);
   }
   #helpBtn {
     position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
@@ -149,12 +158,18 @@
   }
   #hand { display: flex; gap: 6px; justify-content: center; }
   .rcard {
-    flex: 1; max-width: 66px; border-radius: 10px; padding: 5px 0 3px; text-align: center;
+    flex: 1; max-width: 66px; border-radius: 11px; padding: 6px 0 4px; text-align: center;
     font-size: 18px; line-height: 1.05; color: #fff; font-weight: 800;
-    box-shadow: inset 0 2px rgba(255,255,255,.25), inset 0 -3px rgba(0,0,0,.3), 0 2px 3px rgba(0,0,0,.35);
-    border: 1px solid rgba(0,0,0,.3);
+    box-shadow: inset 0 2px 0 rgba(255,255,255,.28), inset 0 -4px 0 rgba(0,0,0,.28), 0 4px 8px rgba(0,0,0,.4);
+    border: 1.5px solid rgba(0,0,0,.32); position: relative;
+    transition: transform .15s ease, filter .15s ease;
   }
-  .rcard small { display: block; font-size: 15px; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
+  .rcard small { display: block; font-size: 17px; font-weight: 900; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  @keyframes resourceGain {
+    0% { transform: scale(1); } 45% { transform: scale(1.14) translateY(-3px); filter: brightness(1.45); }
+    100% { transform: scale(1); }
+  }
+  .rcard.gained { animation: resourceGain .5s ease-out; }
   #actions { display: flex; gap: 6px; }
   #actions button { flex: 1; padding: 11px 4px; font-size: 13px; line-height: 1.25; }
   #actions button.active { outline: 2.5px solid var(--gold); }
@@ -174,11 +189,12 @@
   }
   @media (min-width: 600px) { #overlay { align-items: center; } }
   .modal {
-    background: linear-gradient(180deg, #18303f, var(--panel)); border-radius: 18px 18px 0 0;
+    background: linear-gradient(180deg, #1a333f, var(--panel)); border-radius: 18px 18px 0 0;
     padding: 18px 16px 26px; width: 100%; max-width: 480px; max-height: 84dvh; overflow-y: auto;
-    border-top: 2px solid rgba(233,180,76,.4);
+    border-top: 2px solid rgba(233,180,76,.45);
+    box-shadow: 0 -16px 50px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
   }
-  @media (min-width: 600px) { .modal { border-radius: 18px; border: 1px solid rgba(233,180,76,.3); } }
+  @media (min-width: 600px) { .modal { border-radius: 20px; border: 2px solid rgba(233,180,76,.35); box-shadow: 0 20px 60px rgba(0,0,0,.6); } }
   .modal h3 { margin: 0 0 12px; font-family: 'Cinzel', serif; letter-spacing: 1px; color: var(--gold); }
   .modal .row { display: flex; gap: 8px; margin-top: 12px; }
   .modal .row button { flex: 1; }
@@ -217,10 +233,69 @@
 
   #toast {
     position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-    background: var(--red); color: #fff; padding: 9px 16px; border-radius: 10px;
-    font-weight: 700; font-size: 14px; z-index: 99; max-width: 90vw; text-align: center;
+    background: var(--red); color: #fff; padding: 12px 20px; border-radius: 12px;
+    font-weight: 700; font-size: 15px; z-index: 99; max-width: 90vw; text-align: center;
     transition: opacity .3s; opacity: 0; pointer-events: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18);
+  }
+  @keyframes buildingPlace { 0% { opacity: 0; } 100% { opacity: 1; } }
+  .bld { animation: buildingPlace .3s ease-out; }
+  button { transition: transform .08s, box-shadow .08s, filter .15s; }
+
+  /* ---------- 3D dice on the board ---------- */
+  #diceStage {
+    position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; pointer-events: none; z-index: 6;
+  }
+  #diceInner { display: flex; gap: 42px; perspective: 760px; }
+  @keyframes diceDrop {
+    0%   { transform: translateY(-48vh) scale(.45); opacity: 0; }
+    55%  { transform: translateY(4%) scale(1.08); opacity: 1; }
+    75%  { transform: translateY(-4%) scale(.98); }
+    100% { transform: translateY(0) scale(1); opacity: 1; }
+  }
+  #diceInner.drop { animation: diceDrop .8s cubic-bezier(.3,.6,.4,1) both; }
+  .cube { width: 54px; height: 54px; position: relative; transform-style: preserve-3d; }
+  .cube .face {
+    position: absolute; inset: 0; border-radius: 11px; background: #fdfaf2;
+    box-shadow: inset 0 0 7px rgba(0,0,0,.22); border: 1px solid #cdc2a2;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* resource icons + gain fly-ups */
+  .ricon { width: 22px; height: 24px; vertical-align: middle; }
+  .rcard .ricon { width: 27px; height: 29px; filter: drop-shadow(0 1px 1px rgba(0,0,0,.4)); }
+  #fx { position: fixed; inset: 0; pointer-events: none; z-index: 45; }
+  .gainchip {
+    position: fixed; transform: translate(-50%,-50%); opacity: 0;
+    display: flex; align-items: center; gap: 4px;
+    background: var(--parchment); color: #41382a; font-weight: 800; font-size: 14px;
+    border: 2.5px solid #888; border-radius: 999px; padding: 3px 9px;
     box-shadow: 0 4px 12px rgba(0,0,0,.45);
+    animation: gainFly 1.9s ease both;
+  }
+  .gainchip .dot { width: 10px; height: 10px; }
+  @keyframes gainFly {
+    0%   { opacity: 0; transform: translate(-50%,-50%) scale(.4); }
+    14%  { opacity: 1; transform: translate(-50%,-50%) scale(1.12); }
+    72%  { opacity: 1; transform: translate(-50%, calc(-50% - 70px)) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, calc(-50% - 110px)) scale(.85); }
+  }
+
+  /* ---------- trade ---------- */
+  .trade-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tradebox { background: var(--panel2); border-radius: 12px; padding: 9px 10px; border: 1px solid rgba(233,180,76,.14); }
+  .tradebox h4 { margin: 2px 0 8px; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 1.4px; text-align: center; }
+  .mstep { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+  .mstep b { flex: 1; text-align: center; font-size: 16px; }
+  .mstep button { width: 32px; height: 32px; padding: 0; font-size: 17px; border-radius: 8px; flex-shrink: 0; }
+  .offer-flow { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 10px 0; flex-wrap: wrap; }
+  .offer-flow .arrow { font-size: 22px; color: var(--gold); }
+  .offer-side { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; flex: 1; }
+  .tradechip {
+    background: var(--parchment); color: #41382a; border-radius: 999px;
+    padding: 4px 9px; font-weight: 800; display: inline-flex; align-items: center; gap: 3px;
+    box-shadow: 0 2px 4px rgba(0,0,0,.3);
   }
   #log {
     position: absolute; left: 8px; bottom: 6px; right: 8px; max-height: 74px;
@@ -301,6 +376,9 @@
   <div id="status"><span id="statusInner"></span><button id="helpBtn" onclick="openModal('help')">?</button></div>
   <div id="boardWrap">
     <svg id="board"></svg>
+    <div id="diceStage" class="hidden"><div id="diceInner">
+      <div class="cube" id="cubeA"></div><div class="cube" id="cubeB"></div>
+    </div></div>
     <div id="log"></div>
   </div>
   <div id="bottom">
@@ -310,6 +388,7 @@
 </div>
 
 <div id="overlay" class="hidden"><div class="modal" id="modalBody"></div></div>
+<div id="fx"></div>
 <div id="toast"></div>
 
 <script>
@@ -335,7 +414,7 @@ let mode = null;       // road | settlement | city | robber
 let modal = null;      // current modal name
 let modalData = {};    // scratch state for modals
 let es = null;
-let lastDiceKey = '';
+let lastDiceKey = null;
 
 // ---------- networking ----------
 
@@ -439,6 +518,17 @@ function render() {
     return; // fresh personalized state arrives on the new stream
   }
   show('game');
+  // a fresh roll → tumble dice on the board, then fly the produced cards
+  const diceKey = S.diceA ? `${S.turn}-${S.diceA}-${S.diceB}` : '';
+  if (lastDiceKey === null) {
+    lastDiceKey = diceKey;
+  } else if (diceKey && diceKey !== lastDiceKey) {
+    lastDiceKey = diceKey;
+    rollDice3D(S.diceA, S.diceB);
+    setTimeout(() => spawnGains(S.gains), 100);
+  } else {
+    lastDiceKey = diceKey;
+  }
   syncMode();
   renderPlayers();
   renderStatus();
@@ -485,7 +575,7 @@ function renderPlayers() {
     const turn = (S.phase === 'main' && S.turn === p.id) || (S.phase === 'setup' && S.setupPlayer === p.id);
     const badges = [p.longestRoad ? '🛣️ LR' : '', p.largestArmy ? '⚔️ LA' : ''].filter(Boolean).join('  ');
     const pts = p.id === me() ? S.you.points : p.points;
-    return `<div class="pchip ${turn ? 'turn' : ''}">
+    return `<div class="pchip ${turn ? 'turn' : ''}" style="--pc:${p.color}">
       <span class="nm"><span class="dot" style="background:${p.color}"></span>${p.isBot ? '🤖 ' : ''}${esc(p.name)}${p.id === me() ? ' (you)' : ''}</span>
       <span class="st"><b style="color:var(--gold)">★${pts}</b> 🎴${p.cards} 📜${p.devCards} ⚔️${p.knights}</span>
       <span class="badges">${badges}</span>
@@ -516,11 +606,78 @@ const PIPS = {
   4: [[-1,-1],[1,-1],[-1,1],[1,1]], 5: [[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],
   6: [[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]],
 };
-function dieSVG(n) {
+function dieSVG(n, size = 28) {
   const pips = PIPS[n].map(([x, y]) =>
     `<circle cx="${14 + x * 7}" cy="${14 + y * 7}" r="2.7" fill="#222"/>`).join('');
-  return `<svg width="28" height="28" viewBox="0 0 28 28">
+  return `<svg width="${size}" height="${size}" viewBox="0 0 28 28">
     <rect x="1" y="1" width="26" height="26" rx="6" fill="#fdfaf2" stroke="#b8a87e"/>${pips}</svg>`;
+}
+
+const icon = (r) => `<svg class="ricon" viewBox="-17 -19 34 38"><use href="#i-${r}"/></svg>`;
+
+// ---------- 3D tumbling dice ----------
+
+// cube orientation that brings each value to face the camera
+const FACE_FINAL = { 1: [0, 0], 6: [0, 180], 3: [0, -90], 4: [0, 90], 5: [-90, 0], 2: [90, 0] };
+const CUBE_FACES = [ // [value, face transform]
+  [1, 'translateZ(27px)'], [6, 'rotateY(180deg) translateZ(27px)'],
+  [3, 'rotateY(90deg) translateZ(27px)'], [4, 'rotateY(-90deg) translateZ(27px)'],
+  [5, 'rotateX(90deg) translateZ(27px)'], [2, 'rotateX(-90deg) translateZ(27px)'],
+];
+for (const id of ['cubeA', 'cubeB']) {
+  el(id).innerHTML = CUBE_FACES.map(([v, tf]) =>
+    `<div class="face" style="transform:${tf}">${dieSVG(v, 36)}</div>`).join('');
+}
+
+let diceHideTimer = null;
+function rollDice3D(a, b) {
+  const stage = el('diceStage'), inner = el('diceInner');
+  stage.classList.remove('hidden');
+  inner.classList.remove('drop'); void inner.offsetWidth;
+  inner.classList.add('drop');
+  [[el('cubeA'), a], [el('cubeB'), b]].forEach(([c, v], i) => {
+    const [rx, ry] = FACE_FINAL[v];
+    c.style.transition = 'none';
+    c.style.transform = `rotateX(${(Math.random() * 360) | 0}deg) rotateY(${(Math.random() * 360) | 0}deg) rotateZ(${(Math.random() * 360) | 0}deg)`;
+    void c.offsetWidth;
+    c.style.transition = `transform ${0.95 + i * 0.18}s cubic-bezier(.17,.7,.26,1.03)`;
+    c.style.transform = `rotateX(${rx + 720}deg) rotateY(${ry + 1080}deg)`;
+  });
+  clearTimeout(diceHideTimer);
+  diceHideTimer = setTimeout(() => stage.classList.add('hidden'), 2400);
+}
+
+// map board-SVG coordinates to screen pixels (for fx overlays)
+function svgToScreen(x, y) {
+  const svg = el('board');
+  const vb = svg.viewBox.baseVal;
+  const r = svg.getBoundingClientRect();
+  const scale = Math.min(r.width / vb.width, r.height / vb.height);
+  const ox = r.left + (r.width - vb.width * scale) / 2;
+  const oy = r.top + (r.height - vb.height * scale) / 2;
+  return [ox + (x - vb.x) * scale, oy + (y - vb.y) * scale];
+}
+
+// resource cards flying off the producing hexes toward their owners
+function spawnGains(gains) {
+  if (!gains || !gains.length || !S.board) return;
+  const layer = el('fx');
+  const hexById = {};
+  S.board.hexes.forEach(h => hexById[h.id] = h);
+  gains.forEach((gn, i) => {
+    const h = hexById[gn.hex];
+    if (!h) return;
+    const [sx, sy] = svgToScreen(h.x * SC, h.y * SC);
+    const d = document.createElement('div');
+    d.className = 'gainchip';
+    d.style.left = sx + 'px';
+    d.style.top = sy + 'px';
+    d.style.borderColor = pl(gn.player).color;
+    d.style.animationDelay = (1.0 + i * 0.18) + 's';
+    d.innerHTML = `${icon(gn.resource)}<b>+${gn.n}</b><span class="dot" style="background:${pl(gn.player).color}"></span>`;
+    layer.appendChild(d);
+    setTimeout(() => d.remove(), 3600 + i * 180);
+  });
 }
 
 function renderStatus() {
@@ -528,13 +685,6 @@ function renderStatus() {
   const seat = seats.length > 1 && S.you
     ? `<b style="color:${S.you.color}">${esc(S.you.name)}</b><span style="color:var(--muted)"> · </span>` : '';
   el('statusInner').innerHTML = `${dice}<span>${seat}${statusText()}</span>`;
-  // shake the dice when a new roll arrives
-  const key = S.diceA ? `${S.turn}-${S.diceA}-${S.diceB}-${S.rolled}` : '';
-  if (S.diceA && key !== lastDiceKey) {
-    const d = el('dice');
-    if (d) { d.classList.add('rolling'); setTimeout(() => d && d.classList.remove('rolling'), 600); }
-  }
-  lastDiceKey = key;
 }
 
 // ---------- board ----------
@@ -776,10 +926,20 @@ function tapVert(id) {
 
 // ---------- hand & actions ----------
 
+let lastHand = null;
 function renderHand() {
   el('hand').innerHTML = RES.map(r =>
-    `<div class="rcard" style="background:linear-gradient(180deg, ${RES_COLOR[r]}, ${RES_COLOR[r]}cc)">${RES_EMOJI[r]}<small>${S.you.resources[r] || 0}</small></div>`
+    `<div class="rcard" id="rc-${r}" style="background:linear-gradient(180deg, ${RES_COLOR[r]}, ${RES_COLOR[r]}cc)">${icon(r)}<small>${S.you.resources[r] || 0}</small></div>`
   ).join('');
+  // pulse cards whose count went up
+  if (lastHand && lastHand.id === S.you.id) {
+    for (const r of RES) {
+      if ((S.you.resources[r] || 0) > (lastHand.res[r] || 0)) {
+        el('rc-' + r).classList.add('gained');
+      }
+    }
+  }
+  lastHand = { id: S.you.id, res: Object.assign({}, S.you.resources) };
 }
 
 function renderActions() {
@@ -876,10 +1036,19 @@ function drawModal() {
 function stepper(r, obj, max) {
   const v = modalData[obj][r];
   return `<div class="stepper">
-    <span class="lab">${RES_EMOJI[r]} ${r}</span>
+    <span class="lab">${icon(r)} ${r}</span>
     <button onclick="bump('${obj}','${r}',-1)">−</button>
     <span class="val">${v}</span>
     <button onclick="bump('${obj}','${r}',1,${max})">+</button>
+  </div>`;
+}
+
+// compact stepper for the two-column trade builder
+function miniStep(r, obj) {
+  return `<div class="mstep">${icon(r)}
+    <button onclick="bump('${obj}','${r}',-1)">−</button>
+    <b>${modalData[obj][r]}</b>
+    <button onclick="bump('${obj}','${r}',1)">+</button>
   </div>`;
 }
 function bump(obj, r, d, max) {
@@ -940,8 +1109,8 @@ function pickHTML(n, title) {
   const p = modalData.picks;
   return `<h3>${title}</h3>
     <div class="pick-grid">${RES.map(r =>
-      `<button onclick="pickRes('${r}',${n})">${RES_EMOJI[r]}</button>`).join('')}</div>
-    <p style="text-align:center;font-size:22px;min-height:30px">${p.map(r => RES_EMOJI[r]).join(' ')}</p>
+      `<button onclick="pickRes('${r}',${n})">${icon(r)}</button>`).join('')}</div>
+    <p style="text-align:center;min-height:30px">${p.map(r => icon(r)).join(' ')}</p>
     <div class="row">
       <button class="primary" ${p.length === n ? '' : 'disabled'} onclick="confirmPick(${n})">Confirm</button>
       <button onclick="closeModal()">Cancel</button>
@@ -970,23 +1139,28 @@ function tradeHTML() {
       <div class="pick-grid">${RES.map(r => `
         <button class="${modalData.bankGive === r ? 'primary' : ''}"
           ${(S.you.resources[r] || 0) >= (rates[r] || 4) ? '' : 'disabled'}
-          onclick="modalData.bankGive='${r}';drawModal()">${RES_EMOJI[r]}<small>${rates[r] || 4}:1</small></button>`).join('')}
+          onclick="modalData.bankGive='${r}';drawModal()">${icon(r)}<small>${rates[r] || 4}:1</small></button>`).join('')}
       </div>
+      <div style="text-align:center;font-size:22px;color:var(--gold);margin:4px 0">⇣</div>
       <h4>You receive</h4>
       <div class="pick-grid">${RES.map(r => `
         <button class="${modalData.bankGet === r ? 'primary' : ''}" ${r === modalData.bankGive ? 'disabled' : ''}
-          onclick="modalData.bankGet='${r}';drawModal()">${RES_EMOJI[r]}</button>`).join('')}
+          onclick="modalData.bankGet='${r}';drawModal()">${icon(r)}</button>`).join('')}
       </div>
       <div class="row"><button class="primary" ${modalData.bankGive && modalData.bankGet ? '' : 'disabled'}
-        onclick="doBankTrade()">Trade with bank</button></div>`;
+        onclick="doBankTrade()">${modalData.bankGive && modalData.bankGet
+          ? `Trade ${(S.bankRates || {})[modalData.bankGive] || 4} ${modalData.bankGive} → 1 ${modalData.bankGet}`
+          : 'Trade with bank'}</button></div>`;
   } else {
     const giveN = RES.reduce((t, r) => t + modalData.give[r], 0);
     const getN = RES.reduce((t, r) => t + modalData.get[r], 0);
-    inner = `<div class="tradeside"><h4>You give</h4>${RES.map(r => stepper(r, 'give')).join('')}
-      <h4>You want</h4>${RES.map(r => stepper(r, 'get')).join('')}
+    inner = `<div class="trade-cols">
+        <div class="tradebox"><h4>You give</h4>${RES.map(r => miniStep(r, 'give')).join('')}</div>
+        <div class="tradebox"><h4>You want</h4>${RES.map(r => miniStep(r, 'get')).join('')}</div>
+      </div>
       <div class="row"><button class="primary" ${giveN && getN ? '' : 'disabled'}
         onclick="api('offerTrade',{give:clean(modalData.give),get:clean(modalData.get)}).then(ok=>{if(ok){modal='tradeOffer';drawModal()}})">
-        Offer to players</button></div>`;
+        📣 Offer to players</button></div>`;
   }
   return `<h3>Trade</h3>
     <div class="seg">
@@ -1010,7 +1184,7 @@ function doBankTrade() {
 function tradeOfferHTML() {
   const t = S.trade;
   if (!t) return '<h3>Trade ended</h3><div class="row"><button onclick="closeModal()">Close</button></div>';
-  const fmt = m => Object.entries(m).map(([r, n]) => `${n}× ${RES_EMOJI[r]}`).join('  ') || '—';
+  const chips = m => Object.entries(m).map(([r, n]) => `<span class="tradechip">${icon(r)}×${n}</span>`).join('') || '—';
   const mine = t.from === me();
   let actions = '';
   if (mine) {
@@ -1026,8 +1200,13 @@ function tradeOfferHTML() {
     actions += `<div class="row"><button onclick="closeModal()">Hide</button></div>`;
   }
   return `<h3>${esc(pl(t.from).name)} offers</h3>
-    <div class="devrow"><span>Gives</span><b>${fmt(t.give)}</b></div>
-    <div class="devrow"><span>Wants</span><b>${fmt(t.get)}</b></div>
+    <div class="offer-flow">
+      <div class="offer-side">${chips(t.give)}</div>
+      <div class="arrow">⇄</div>
+      <div class="offer-side">${chips(t.get)}</div>
+    </div>
+    <p class="hint" style="text-align:center;margin:0 0 6px">
+      ${mine ? 'They receive what you give, you receive what you want.' : `${esc(pl(t.from).name)} gives you the left side for the right side.`}</p>
     ${actions}`;
 }
 
