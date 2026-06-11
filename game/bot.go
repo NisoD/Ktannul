@@ -34,12 +34,24 @@ func (g *Game) removeBot(p *Player) error {
 	if p.ID != 0 {
 		return errors.New("only the host can remove bots")
 	}
-	n := len(g.Players)
-	if n == 0 || !g.Players[n-1].IsBot {
+	idx := -1
+	for i := len(g.Players) - 1; i >= 0; i-- {
+		if g.Players[i].IsBot {
+			idx = i
+			break
+		}
+	}
+	if idx == -1 {
 		return errors.New("no bot to remove")
 	}
-	g.logf("%s left", g.Players[n-1].Name)
-	g.Players = g.Players[:n-1]
+	g.logf("%s left", g.Players[idx].Name)
+	g.Players = append(g.Players[:idx], g.Players[idx+1:]...)
+	// Player IDs double as slice indexes — reindex (lobby only, so no
+	// board state references them yet).
+	for i, pl := range g.Players {
+		pl.ID = i
+		pl.Color = playerColors[i]
+	}
 	return nil
 }
 

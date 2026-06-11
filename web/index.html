@@ -2,13 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b2536">
 <title>Catan</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<script src="vendor/qrcode.js"></script>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
 <script type="module">
   try {
@@ -116,9 +117,16 @@
     box-shadow: 0 4px 10px rgba(0,0,0,.35);
   }
   #helpBtn {
-    position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
-    width: 28px; height: 28px; padding: 0; border-radius: 50%;
-    background: var(--panel2); color: var(--gold); font-weight: 800; font-size: 15px;
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    width: 38px; height: 38px; padding: 0; border-radius: 50%;
+    background: var(--panel2); color: var(--gold); font-weight: 800; font-size: 18px;
+  }
+  #boardChips {
+    position: absolute; top: 8px; left: 8px; display: flex; gap: 6px; z-index: 7;
+  }
+  #boardChips button {
+    padding: 7px 11px; font-size: 13px; border-radius: 999px;
+    background: rgba(15,35,48,.78); border: 1px solid rgba(233,180,76,.3);
   }
   #dice { display: flex; gap: 5px; }
   #dice svg { filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
@@ -163,7 +171,8 @@
   .vert-hl, .edge-hl, .hex.hl { animation: pulse 1.1s infinite; }
 
   #bottom {
-    flex-shrink: 0; padding: 7px 8px 10px; display: flex; flex-direction: column; gap: 7px;
+    flex-shrink: 0; padding: 7px 8px calc(10px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 7px;
     background: linear-gradient(180deg, var(--wood-1), var(--wood-2));
     border-top: 2px solid rgba(233,180,76,.35);
     box-shadow: 0 -6px 18px rgba(0,0,0,.4);
@@ -183,7 +192,9 @@
   }
   .rcard.gained { animation: resourceGain .5s ease-out; }
   #actions { display: flex; gap: 6px; }
-  #actions button { flex: 1; padding: 11px 4px; font-size: 13px; line-height: 1.25; }
+  #actions button { flex: 1; padding: 9px 4px; font-size: 13px; line-height: 1.25; }
+  .costrow { display: inline-flex; gap: 1px; }
+  .costrow svg { width: 11px; height: 12px; }
   #actions button.active { outline: 2.5px solid var(--gold); }
   #actions button.roll {
     font-family: 'Cinzel', serif; font-size: 19px; letter-spacing: 2px; padding: 14px 4px;
@@ -250,6 +261,7 @@
     transition: opacity .3s; opacity: 0; pointer-events: none;
     box-shadow: 0 8px 24px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18);
   }
+  #toast.info { background: linear-gradient(180deg, #f4c764, var(--gold-dark)); color: #2b1d00; top: 96px; }
   @keyframes buildingPlace { 0% { opacity: 0; } 100% { opacity: 1; } }
   .bld { animation: buildingPlace .3s ease-out; }
   button { transition: transform .08s, box-shadow .08s, filter .15s; }
@@ -311,12 +323,51 @@
   }
   #log {
     position: absolute; left: 8px; bottom: 6px; right: 8px; max-height: 74px;
-    overflow: hidden; font-size: 11.5px; color: #e3eef5; pointer-events: none;
+    overflow: hidden; font-size: 11.5px; color: #e3eef5; cursor: pointer;
     display: flex; flex-direction: column; justify-content: flex-end;
     text-shadow: 0 1px 3px rgba(0,0,0,.9); font-weight: 600;
   }
   #winBox { text-align: center; }
   #winBox .trophy { font-size: 64px; }
+
+  .minihand {
+    display: flex; gap: 5px; justify-content: center; margin-bottom: 10px;
+    background: var(--panel2); border-radius: 10px; padding: 6px;
+  }
+  .minihand span { display: flex; align-items: center; gap: 2px; font-weight: 800; font-size: 14px; }
+  .qrbox { background: #fff; padding: 10px; border-radius: 12px; line-height: 0; }
+  .qrbox svg { width: 150px; height: 150px; }
+  #joinUrl { font-weight: 800; font-size: 16px; color: var(--gold); letter-spacing: .5px; user-select: text; -webkit-user-select: text; }
+  .histo { display: flex; align-items: flex-end; gap: 3px; height: 56px; justify-content: center; margin: 10px 0 2px; }
+  .histo div { width: 18px; background: var(--gold); border-radius: 3px 3px 0 0; position: relative; min-height: 2px; }
+  .histo div small { position: absolute; bottom: -16px; left: 0; right: 0; text-align: center; font-size: 9px; color: var(--muted); }
+
+  /* ---------- landscape phones: use the side-panel layout ---------- */
+  @media (orientation: landscape) and (max-height: 560px) and (max-width: 919px) {
+    #game {
+      display: grid;
+      grid-template-columns: 200px 1fr 215px;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "status status status"
+        "players board   bottom";
+    }
+    #status { grid-area: status; min-height: 36px; padding-top: 3px; padding-bottom: 3px; }
+    #boardWrap { grid-area: board; }
+    #players {
+      grid-area: players; flex-direction: column; overflow-y: auto; gap: 8px;
+      border-right: 1px solid rgba(233,180,76,.22); border-bottom: 0;
+    }
+    #bottom {
+      grid-area: bottom; justify-content: flex-start; gap: 8px; overflow-y: auto;
+      border-top: 0; border-left: 2px solid rgba(233,180,76,.35);
+    }
+    #hand { flex-wrap: wrap; gap: 5px; }
+    .rcard { flex: 1 1 28%; max-width: none; }
+    #actions { flex-direction: column; gap: 6px; }
+    #actions button { padding: 9px 6px; }
+    #actions button br { display: none; }
+  }
 
   /* ---------- desktop / tablet: side panels, bigger UI ---------- */
   @media (min-width: 920px) {
@@ -375,6 +426,11 @@
 
 <div id="lobbyScreen" class="screen hidden">
   <h1>LOBBY</h1>
+  <div id="joinShare" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+    <div class="qrbox" id="qrBox"></div>
+    <div id="joinUrl"></div>
+    <div class="hint">Friends scan this or type the address — same wifi.</div>
+  </div>
   <div class="lobby-list" id="lobbyList"></div>
   <div id="lobbyControls" style="display:flex;flex-direction:column;gap:8px;width:250px">
     <div style="display:flex;gap:6px">
@@ -396,6 +452,11 @@
   <div id="boardWrap">
     <svg id="board"></svg>
     <canvas id="board3d" class="hidden"></canvas>
+    <div id="boardChips">
+      <button onclick="toggle2D()" id="dimChip">2D</button>
+      <button onclick="recenter()" id="centerChip">⌖</button>
+      <button onclick="openModal('log')">📋</button>
+    </div>
     <div id="diceStage" class="hidden"><div id="diceInner">
       <div class="cube" id="cubeA"></div><div class="cube" id="cubeB"></div>
     </div></div>
@@ -439,6 +500,9 @@ const seatOf = (id) => seats.findIndex(s => s.id === id);
 
 let S = null;          // latest server state
 let mode = null;       // road | settlement | city | robber
+let pending = null;    // tap-selected placement awaiting confirmation
+let winShown = false;  // win modal opened once per game end
+let lastTurnKey = null;
 let modal = null;      // current modal name
 let modalData = {};    // scratch state for modals
 let es = null;
@@ -511,12 +575,42 @@ function neededSeat() {
 }
 
 let toastTimer = null;
-function toast(msg) {
+function toast(msg, kind) {
   const t = document.getElementById('toast');
   t.textContent = msg;
+  t.classList.toggle('info', kind === 'info');
   t.style.opacity = 1;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.style.opacity = 0, 2600);
+}
+
+// ---------- tiny synth SFX (no assets) ----------
+let audioCtx = null;
+let muted = localStorage.getItem('catan_mute') === '1';
+function beep(freq, dur, type = 'sine', gain = 0.12, when = 0) {
+  if (muted) return;
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(gain, audioCtx.currentTime + when);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + when + dur);
+    o.connect(g).connect(audioCtx.destination);
+    o.start(audioCtx.currentTime + when);
+    o.stop(audioCtx.currentTime + when + dur);
+  } catch (e) {}
+}
+const sfx = {
+  dice:  () => { beep(220, .07, 'square', .08); beep(180, .07, 'square', .08, .09); beep(240, .1, 'square', .08, .18); },
+  build: () => beep(160, .15, 'sine', .18),
+  turn:  () => { beep(523, .12, 'sine', .1); beep(784, .18, 'sine', .1, .13); if (navigator.vibrate) navigator.vibrate(90); },
+  rob:   () => { beep(330, .12, 'sawtooth', .07); beep(220, .2, 'sawtooth', .07, .12); },
+  win:   () => [523, 659, 784, 1047].forEach((f, i) => beep(f, .25, 'sine', .12, i * .15)),
+};
+function toggleMute() {
+  muted = !muted;
+  localStorage.setItem('catan_mute', muted ? '1' : '0');
+  drawModal();
 }
 
 // ---------- helpers ----------
@@ -541,11 +635,16 @@ function render() {
   const need = neededSeat();
   if (need !== -1 && need !== active) {
     active = need;
-    if (seats.length > 1) toast(`👉 ${seats[active].name}, you're up!`);
+    if (seats.length > 1) toast(`👉 ${seats[active].name}, you're up!`, 'info');
     connect();
     return; // fresh personalized state arrives on the new stream
   }
   show('game');
+  // hot-seat: keep stored seat ids in sync (bot removal reindexes seats)
+  if (seats[active] && seats[active].id !== S.you.id) {
+    seats[active].id = S.you.id;
+    saveSeats();
+  }
   // a fresh roll → tumble dice on the board, then fly the produced cards
   const diceKey = S.diceA ? `${S.turn}-${S.diceA}-${S.diceB}` : '';
   if (lastDiceKey === null) {
@@ -553,11 +652,22 @@ function render() {
   } else if (diceKey && diceKey !== lastDiceKey) {
     lastDiceKey = diceKey;
     rollDice3D(S.diceA, S.diceB);
+    sfx.dice();
     setTimeout(() => spawnGains(S.gains), 100);
   } else {
     lastDiceKey = diceKey;
   }
+  // turn / end-of-game cues
+  const turnKey = `${S.phase}-${S.turn}-${S.you.id}`;
+  if (turnKey !== lastTurnKey) {
+    if (lastTurnKey !== null) {
+      if (S.phase === 'ended') sfx.win();
+      else if (myTurn() && !S.rolled) sfx.turn();
+    }
+    lastTurnKey = turnKey;
+  }
   syncMode();
+  validatePending();
   renderPlayers();
   renderStatus();
   renderBoard();
@@ -591,6 +701,21 @@ async function claimSeat(id) {
 
 function renderLobby() {
   show('lobbyScreen');
+  // QR + address so phones can join without anyone reading out an IP
+  const share = el('joinShare');
+  if (S.joinURL && typeof qrcode === 'function') {
+    share.classList.remove('hidden');
+    if (share.dataset.url !== S.joinURL) {
+      share.dataset.url = S.joinURL;
+      try {
+        const qr = qrcode(0, 'M');
+        qr.addData(S.joinURL);
+        qr.make();
+        el('qrBox').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 });
+      } catch (e) { el('qrBox').textContent = ''; }
+      el('joinUrl').textContent = S.joinURL;
+    }
+  }
   el('lobbyList').innerHTML = S.players.map(p =>
     `<div class="lobby-row"><span class="dot" style="background:${p.color}"></span>
       ${p.isBot ? '🤖 ' : ''}${esc(p.name)}${p.id === 0 ? ' 👑' : ''}${seatOf(p.id) !== -1 ? ' <small style="color:var(--muted)">📱</small>' : ''}</div>`
@@ -618,6 +743,15 @@ function syncMode() {
   if (mode === 'settlement' && (!S.legalSettlements || !S.legalSettlements.length)) mode = null;
   if (mode === 'city' && (!S.legalCities || !S.legalCities.length)) mode = null;
   if (!myTurn()) mode = null;
+}
+
+// pending placement is only meaningful while its target is still legal
+function validatePending() {
+  if (!pending) return;
+  const stillLegal =
+    (pending.kind === 'vert' && ((S.legalSettlements || []).includes(pending.id) || (S.legalCities || []).includes(pending.id))) ||
+    (pending.kind === 'edge' && (S.legalRoads || []).includes(pending.id));
+  if (!stillLegal) pending = null;
 }
 
 function renderPlayers() {
@@ -694,7 +828,8 @@ function rollDice3D(a, b) {
     c.style.transform = `rotateX(${rx + 720}deg) rotateY(${ry + 1080}deg)`;
   });
   clearTimeout(diceHideTimer);
-  diceHideTimer = setTimeout(() => stage.classList.add('hidden'), 2400);
+  // a 7 needs the board clear fast — the robber is about to be placed
+  diceHideTimer = setTimeout(() => stage.classList.add('hidden'), a + b === 7 ? 1200 : 2400);
 }
 
 // map board-SVG coordinates to screen pixels (for fx overlays)
@@ -727,13 +862,13 @@ function spawnGains(gains) {
     }
     const d = document.createElement('div');
     d.className = 'gainchip';
-    d.style.left = sx + 'px';
-    d.style.top = sy + 'px';
+    d.style.left = (sx + ((i % 3) - 1) * 26) + 'px'; // fan out stacked chips
+    d.style.top = (sy + (((i / 3) | 0) % 2) * 18) + 'px';
     d.style.borderColor = pl(gn.player).color;
-    d.style.animationDelay = (1.0 + i * 0.18) + 's';
+    d.style.animationDelay = (1.0 + i * 0.12) + 's';
     d.innerHTML = `${icon(gn.resource)}<b>+${gn.n}</b><span class="dot" style="background:${pl(gn.player).color}"></span>`;
     layer.appendChild(d);
-    setTimeout(() => d.remove(), 3600 + i * 180);
+    setTimeout(() => d.remove(), 3100 + i * 120);
   });
 }
 
@@ -869,10 +1004,12 @@ function renderBoard() {
   const on3d = use3D();
   el('board').classList.toggle('hidden', !!on3d);
   el('board3d').classList.toggle('hidden', !on3d);
+  el('dimChip').textContent = on3d ? '2D' : '3D';
+  el('centerChip').classList.toggle('hidden', !on3d);
   if (on3d) {
     try {
       window.board3d.setVisible(true);
-      window.board3d.update(S, mode);
+      window.board3d.update(S, mode, pending);
       return;
     } catch (e) {
       window.board3dFailed = true;
@@ -887,8 +1024,12 @@ function renderBoard() {
 
 function toggle2D() {
   localStorage.setItem('catan_2d', use3D() ? '1' : '0');
-  closeModal();
+  if (modal === 'help') closeModal();
   renderBoard();
+}
+
+function recenter() {
+  if (use3D() && window.board3d.resetCamera) window.board3d.resetCamera();
 }
 
 function renderBoardSVG() {
@@ -983,8 +1124,7 @@ function renderBoardSVG() {
       const c = pl(b.player).color;
       if (b.type === 'settlement') {
         out += `<g class="bld">
-          <path fill="${c}" d="M ${x-8} ${y+7} L ${x-8} ${y-2.5} L ${x} ${y-10.5} L ${x+8} ${y-2.5} L ${x+8} ${y+7} Z"/>
-          <path fill="rgba(0,0,0,.28)" d="M ${x-9.4} ${y-1.6} L ${x} ${y-11.6} L ${x+9.4} ${y-1.6} L ${x+7.2} ${y-1.6} L ${x} ${y-9} L ${x-7.2} ${y-1.6} Z"/>
+          <path fill="${c}" d="M ${x-10} ${y+7} L ${x-10} ${y-2} L ${x} ${y-10} L ${x+10} ${y-2} L ${x+10} ${y+7} Z"/>
         </g>`;
       } else {
         out += `<g class="bld">
@@ -1000,20 +1140,57 @@ function renderBoardSVG() {
     }
   }
 
+  // tap-selected placement awaiting confirmation
+  if (pending) {
+    let px, py;
+    if (pending.kind === 'vert') {
+      const v = B.verts[pending.id];
+      px = v.x * SC; py = v.y * SC;
+    } else {
+      const e = B.edges[pending.id];
+      px = (B.verts[e.v1].x + B.verts[e.v2].x) / 2 * SC;
+      py = (B.verts[e.v1].y + B.verts[e.v2].y) / 2 * SC;
+    }
+    out += `<circle cx="${px}" cy="${py}" r="14" fill="none" stroke="#4ade80" stroke-width="5" pointer-events="none"/>`;
+  }
+
   svg.innerHTML = out;
 }
 
+// Taps SELECT a spot; building happens on an explicit confirm so a
+// fat-finger can't commit an irreversible placement.
 function tapHex(id) {
-  if (mode === 'robber') api('moveRobber', { hex: id });
+  if (mode === 'robber') api('moveRobber', { hex: id }).then(ok => ok && sfx.rob());
 }
 function tapEdge(id) {
-  if (S.phase === 'setup') api('placeSetupRoad', { edge: id });
-  else api('buildRoad', { edge: id }).then(ok => { if (ok && S.freeRoads <= 1) mode = null; });
+  pending = {
+    kind: 'edge', id,
+    type: S.phase === 'setup' ? 'placeSetupRoad' : 'buildRoad',
+    payload: { edge: id }, label: 'road',
+  };
+  render();
 }
 function tapVert(id) {
-  if (S.phase === 'setup') { api('placeSetupSettlement', { vertex: id }); return; }
-  if (mode === 'settlement') api('buildSettlement', { vertex: id }).then(() => mode = null);
-  else if (mode === 'city') api('buildCity', { vertex: id }).then(() => mode = null);
+  if (S.phase === 'setup' || mode === 'settlement') {
+    pending = {
+      kind: 'vert', id,
+      type: S.phase === 'setup' ? 'placeSetupSettlement' : 'buildSettlement',
+      payload: { vertex: id }, label: 'settlement',
+    };
+  } else if (mode === 'city') {
+    pending = { kind: 'vert', id, type: 'buildCity', payload: { vertex: id }, label: 'city' };
+  } else return;
+  render();
+}
+function confirmPending() {
+  const p = pending;
+  if (!p) return;
+  pending = null;
+  api(p.type, p.payload).then(ok => { if (ok) sfx.build(); render(); });
+}
+function cancelPending() {
+  pending = null;
+  render();
 }
 
 // ---------- hand & actions ----------
@@ -1034,10 +1211,45 @@ function renderHand() {
   lastHand = { id: S.you.id, res: Object.assign({}, S.you.resources) };
 }
 
+const COSTS = {
+  road: { wood: 1, brick: 1 },
+  settlement: { wood: 1, brick: 1, sheep: 1, wheat: 1 },
+  city: { wheat: 2, ore: 3 },
+};
+
+// why a build is unavailable, in plain words
+function buildBlockReason(kind, legal) {
+  const miss = [];
+  for (const [res, n] of Object.entries(COSTS[kind])) {
+    const have = S.you.resources[res] || 0;
+    if (have < n) miss.push(`${n - have} ${res}`);
+  }
+  if (kind === 'road' && S.freeRoads > 0) miss.length = 0;
+  if (miss.length) return `Need ${miss.join(' + ')} more`;
+  if (!(legal || []).length) return kind === 'city' ? 'No settlement to upgrade' : 'No legal spot — extend your roads';
+  return '';
+}
+
+function buildBtn(kind, emoji, label, legal) {
+  const why = buildBlockReason(kind, legal);
+  const costIcons = Object.entries(COSTS[kind])
+    .map(([res, n]) => `${icon(res)}`.repeat(n)).join('');
+  return `<button class="${mode === kind ? 'active' : ''}" style="${why ? 'opacity:.4' : ''}"
+    onclick="${why ? `toast(${JSON.stringify(why).replace(/"/g, '&quot;')})` : `setMode('${kind}')`}">${emoji}<br>${label}<br><span class="costrow">${costIcons}</span></button>`;
+}
+
 function renderActions() {
   const a = el('actions');
+  if (pending) {
+    a.innerHTML = `
+      <button class="primary roll" style="flex:2.2" onclick="confirmPending()">✓ PLACE ${pending.label.toUpperCase()}</button>
+      <button class="danger" onclick="cancelPending()">✕<br>Cancel</button>`;
+    return;
+  }
   if (S.phase === 'ended') {
-    a.innerHTML = `<button class="primary" onclick="api('newGame')">Play again</button>`;
+    a.innerHTML = seatOf(0) !== -1
+      ? `<button class="primary" onclick="api('newGame')">Play again</button>`
+      : `<button onclick="openModal('win')">Final standings</button>`;
     return;
   }
   if (S.phase === 'setup') { a.innerHTML = ''; return; }
@@ -1052,15 +1264,11 @@ function renderActions() {
       ${knight ? `<button onclick="playCard('knight')">⚔️<br>Knight</button>` : ''}`;
     return;
   }
-  const r = S.you.resources;
-  const canRoad = (S.freeRoads > 0 || (r.wood >= 1 && r.brick >= 1)) && (S.legalRoads || []).length;
-  const canSett = r.wood >= 1 && r.brick >= 1 && r.sheep >= 1 && r.wheat >= 1 && (S.legalSettlements || []).length;
-  const canCity = r.wheat >= 2 && r.ore >= 3 && (S.legalCities || []).length;
   a.innerHTML = `
-    <button class="${mode === 'road' ? 'active' : ''}" ${canRoad ? '' : 'disabled'} onclick="setMode('road')">🛣️<br>Road</button>
-    <button class="${mode === 'settlement' ? 'active' : ''}" ${canSett ? '' : 'disabled'} onclick="setMode('settlement')">🏠<br>House</button>
-    <button class="${mode === 'city' ? 'active' : ''}" ${canCity ? '' : 'disabled'} onclick="setMode('city')">🏰<br>City</button>
-    <button onclick="openModal('dev')">📜<br>Cards</button>
+    ${buildBtn('road', '🛣️', 'Road', S.legalRoads)}
+    ${buildBtn('settlement', '🏠', 'House', S.legalSettlements)}
+    ${buildBtn('city', '🏰', 'City', S.legalCities)}
+    <button onclick="openModal('dev')">📜<br>Cards<br><span class="costrow">${icon('sheep')}${icon('wheat')}${icon('ore')}</span></button>
     <button onclick="openModal(S.trade ? 'tradeOffer' : 'trade')">🔁<br>Trade</button>
     <button class="primary" onclick="api('endTurn')">✅<br>End</button>`;
 }
@@ -1072,7 +1280,9 @@ function setMode(m) {
 }
 
 function renderLog() {
-  el('log').innerHTML = (S.log || []).slice(-4).map(l => `<div>${esc(l.text)}</div>`).join('');
+  const lg = el('log');
+  lg.innerHTML = (S.log || []).slice(-4).map(l => `<div>${esc(l.text)}</div>`).join('');
+  lg.onclick = () => openModal('log');
 }
 
 // ---------- modals ----------
@@ -1097,7 +1307,11 @@ function closeModal() {
 
 // open forced modals automatically
 function autoModal() {
-  if (S.phase === 'ended' && modal !== 'win') { openModal('win'); return; }
+  if (S.phase === 'ended') {
+    if (!winShown) { winShown = true; openModal('win'); }
+    return; // win modal is dismissible — never force-reopen
+  }
+  winShown = false;
   if (S.mustDiscard > 0) {
     if (modal !== 'discard') openModal('discard');
     return;
@@ -1122,27 +1336,38 @@ function drawModal() {
   else if (modal === 'pick2') body.innerHTML = pickHTML(2, 'Year of Plenty — take 2 resources');
   else if (modal === 'pick1') body.innerHTML = pickHTML(1, 'Monopoly — take everyone\'s…');
   else if (modal === 'help') body.innerHTML = helpHTML();
+  else if (modal === 'log') body.innerHTML = logHTML();
   else if (modal === 'win') body.innerHTML = winHTML();
 }
 
-function stepper(r, obj, max) {
+function atCap(r, obj) {
+  const own = obj === 'give' || obj === 'amounts';
+  return modalData[obj][r] >= (own ? (S.you.resources[r] || 0) : 19);
+}
+
+function stepper(r, obj) {
   const v = modalData[obj][r];
+  const own = obj === 'give' || obj === 'amounts';
   return `<div class="stepper">
-    <span class="lab">${icon(r)} ${r}</span>
-    <button onclick="bump('${obj}','${r}',-1)">−</button>
+    <span class="lab">${icon(r)} ${r}${own ? ` <small style="color:var(--muted)">(have ${S.you.resources[r] || 0})</small>` : ''}</span>
+    <button ${v === 0 ? 'disabled' : ''} onclick="bump('${obj}','${r}',-1)">−</button>
     <span class="val">${v}</span>
-    <button onclick="bump('${obj}','${r}',1,${max})">+</button>
+    <button ${atCap(r, obj) ? 'disabled' : ''} onclick="bump('${obj}','${r}',1)">+</button>
   </div>`;
 }
 
 // compact stepper for the two-column trade builder
 function miniStep(r, obj) {
-  return `<div class="mstep">${icon(r)}
-    <button onclick="bump('${obj}','${r}',-1)">−</button>
+  const own = obj === 'give';
+  return `<div class="mstep">${icon(r)}${own ? `<small style="color:var(--muted)">${S.you.resources[r] || 0}</small>` : ''}
+    <button ${modalData[obj][r] === 0 ? 'disabled' : ''} onclick="bump('${obj}','${r}',-1)">−</button>
     <b>${modalData[obj][r]}</b>
-    <button onclick="bump('${obj}','${r}',1)">+</button>
+    <button ${atCap(r, obj) ? 'disabled' : ''} onclick="bump('${obj}','${r}',1)">+</button>
   </div>`;
 }
+
+const miniHand = () => `<div class="minihand">${RES.map(r =>
+  `<span>${icon(r)}${S.you.resources[r] || 0}</span>`).join('')}</div>`;
 function bump(obj, r, d, max) {
   const v = modalData[obj][r] + d;
   const cap = (obj === 'give' || obj === 'amounts') ? (S.you.resources[r] || 0) : 19;
@@ -1153,6 +1378,7 @@ function bump(obj, r, d, max) {
 function discardHTML() {
   const total = RES.reduce((t, r) => t + modalData.amounts[r], 0);
   return `<h3>Rolled 7 — discard ${S.mustDiscard} cards</h3>
+    ${miniHand()}
     ${RES.filter(r => S.you.resources[r] > 0).map(r => stepper(r, 'amounts')).join('')}
     <div class="row">
       <button class="primary" ${total === S.mustDiscard ? '' : 'disabled'}
@@ -1255,6 +1481,7 @@ function tradeHTML() {
         📣 Offer to players</button></div>`;
   }
   return `<h3>Trade</h3>
+    ${miniHand()}
     <div class="seg">
       <button class="${tab === 'bank' ? 'on' : ''}" onclick="modalData.tab='bank';drawModal()">Bank / Port</button>
       <button class="${tab === 'players' ? 'on' : ''}" onclick="modalData.tab='players';drawModal()">Players</button>
@@ -1331,18 +1558,41 @@ function helpHTML() {
   </div>
   <div class="row">
     <button onclick="toggle2D()">${use3D() ? '🗺️ Classic 2D board' : '🎲 3D board'}</button>
+    <button onclick="toggleMute()">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
     <button onclick="closeModal()">Close</button>
   </div>`;
 }
 
 function winHTML() {
   const w = pl(S.winner);
+  let histo = '';
+  if (S.rollCounts && S.rollCounts.some(n => n)) {
+    const max = Math.max(...S.rollCounts);
+    histo = `<h4 style="color:var(--muted);margin:14px 0 0;font-size:12px;letter-spacing:1px">DICE THIS GAME</h4>
+      <div class="histo">${S.rollCounts.slice(2).map((n, i) =>
+        `<div style="height:${Math.max(4, n / max * 100)}%" title="${n}"><small>${i + 2}</small></div>`).join('')}</div>
+      <div style="height:16px"></div>`;
+  }
+  const host = seatOf(0) !== -1;
   return `<div id="winBox">
     <div class="trophy">🏆</div>
     <h3 style="font-size:26px">${esc(w.name)} wins!</h3>
     ${S.players.map(p => `<div class="devrow"><span><span class="dot" style="display:inline-block;background:${p.color}"></span> ${esc(p.name)}</span><b>★ ${p.id === me() ? S.you.points : p.points}</b></div>`).join('')}
-    <div class="row"><button class="primary" onclick="api('newGame').then(ok=>ok&&closeModal())">Play again</button></div>
+    ${histo}
+    <div class="row">
+      ${host ? `<button class="primary" onclick="api('newGame').then(ok=>ok&&closeModal())">Play again</button>` : ''}
+      <button onclick="closeModal()">Close</button>
+    </div>
+    ${host ? '' : '<p class="hint" style="text-align:center">The host starts the rematch.</p>'}
   </div>`;
+}
+
+function logHTML() {
+  return `<h3>Game log</h3>
+    <div style="max-height:55dvh;overflow-y:auto;font-size:14px;line-height:1.7">
+      ${(S.log || []).map(l => `<div>${esc(l.text)}</div>`).join('') || '<p class="hint">Nothing yet.</p>'}
+    </div>
+    <div class="row"><button onclick="closeModal()">Close</button></div>`;
 }
 
 function esc(s) {

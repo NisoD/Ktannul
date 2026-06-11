@@ -1,6 +1,7 @@
 package game
 
 import (
+	"bytes"
 	"encoding/gob"
 	"os"
 )
@@ -36,10 +37,12 @@ type snapshot struct {
 	Winner            int
 	Log               []LogEntry
 	Version           int
+	RollCounts        [13]int
 }
 
 // Save writes the full game state atomically so a server restart can
-// resume mid-game.
+// resume mid-game. Encoding happens under the lock — the snapshot holds
+// references to live maps, so encoding outside would race with the game.
 func (g *Game) Save(path string) error {
 	g.Mu.Lock()
 	s := snapshot{
@@ -52,21 +55,16 @@ func (g *Game) Save(path string) error {
 		BuildingsV: g.BuildingsV, RoadsE: g.RoadsE, DevDeck: g.DevDeck, Bank: g.Bank,
 		LongestRoadPlayer: g.LongestRoadPlayer, LongestRoadLen: g.LongestRoadLen,
 		LargestArmyPlayer: g.LargestArmyPlayer, Trade: g.Trade, Winner: g.Winner,
-		Log: g.Log, Version: g.Version,
+		Log: g.Log, Version: g.Version, RollCounts: g.RollCounts,
 	}
+	var buf bytes.Buffer
+	err := gob.NewEncoder(&buf).Encode(&s)
 	g.Mu.Unlock()
-
-	tmp := path + ".tmp"
-	f, err := os.Create(tmp)
 	if err != nil {
 		return err
 	}
-	if err := gob.NewEncoder(f).Encode(&s); err != nil {
-		f.Close()
-		os.Remove(tmp)
-		return err
-	}
-	if err := f.Close(); err != nil {
+	tmp := path + ".tmp"
+	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
 		os.Remove(tmp)
 		return err
 	}
@@ -96,5 +94,6 @@ func Load(path string) (*Game, error) {
 	g.LongestRoadPlayer, g.LongestRoadLen = s.LongestRoadPlayer, s.LongestRoadLen
 	g.LargestArmyPlayer, g.Trade, g.Winner = s.LargestArmyPlayer, s.Trade, s.Winner
 	g.Log, g.Version = s.Log, s.Version
+	g.RollCounts = s.RollCounts
 	return g, nil
 }

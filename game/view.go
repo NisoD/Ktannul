@@ -1,5 +1,7 @@
 package game
 
+import "encoding/json"
+
 // View is the personalized game state sent to one client.
 type View struct {
 	Phase   string       `json:"phase"`
@@ -32,6 +34,8 @@ type View struct {
 	BankRates        map[string]int `json:"bankRates,omitempty"`
 	DevDeckLeft      int            `json:"devDeckLeft"`
 	Gains            []Gain         `json:"gains,omitempty"`
+	JoinURL          string         `json:"joinURL,omitempty"`
+	RollCounts       []int          `json:"rollCounts,omitempty"` // ended phase only
 }
 
 type YouView struct {
@@ -74,12 +78,16 @@ type BoardView struct {
 	Roads     map[int]int      `json:"roads"`
 }
 
-// ViewFor builds the state visible to the given token. Caller must NOT
-// hold the mutex.
-func (g *Game) ViewFor(token string) *View {
+// ViewJSON marshals the state visible to the given token. Marshaling
+// happens under the lock because the View aliases live maps and slices —
+// encoding it outside would race with concurrent actions.
+func (g *Game) ViewJSON(token string) ([]byte, error) {
 	g.Mu.Lock()
 	defer g.Mu.Unlock()
+	return json.Marshal(g.viewLocked(token))
+}
 
+func (g *Game) viewLocked(token string) *View {
 	p := g.playerByToken(token)
 	v := &View{
 		Phase:       g.Phase,
@@ -94,6 +102,12 @@ func (g *Game) ViewFor(token string) *View {
 		SetupPlayer: -1,
 		DevDeckLeft: len(g.DevDeck),
 		Gains:       g.LastGains,
+	}
+	if g.Phase == PhaseLobby {
+		v.JoinURL = g.JoinURL
+	}
+	if g.Phase == PhaseEnded {
+		v.RollCounts = g.RollCounts[:]
 	}
 	for _, pl := range g.Players {
 		v.Players = append(v.Players, PlayerView{

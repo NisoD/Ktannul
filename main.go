@@ -64,10 +64,11 @@ func main() {
 
 	fmt.Println("Catan server running.")
 	fmt.Println("Players on the same wifi can join at:")
-	port := *addr
-	for _, ip := range lanIPs() {
-		fmt.Printf("  http://%s%s\n", ip, port)
+	ips := lanIPs()
+	for _, ip := range ips {
+		fmt.Printf("  http://%s%s\n", ip, *addr)
 	}
+	g.JoinURL = fmt.Sprintf("http://%s%s", ips[0], *addr) // shown + QR-coded in the lobby
 	log.Fatal(http.ListenAndServe(*addr, mux))
 }
 
@@ -105,9 +106,6 @@ func (s *server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "bad request"})
 		return
-	}
-	if len(req.Name) > 16 {
-		req.Name = req.Name[:16]
 	}
 	var p *game.Player
 	var err error
@@ -161,7 +159,7 @@ func (s *server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	send := func() bool {
-		data, err := json.Marshal(s.g.ViewFor(token))
+		data, err := s.g.ViewJSON(token)
 		if err != nil {
 			return false
 		}

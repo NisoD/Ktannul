@@ -25,6 +25,8 @@ const BASE = { wood: '#2e7d3a', brick: '#bd5a2c', sheep: '#9cc454', wheat: '#dda
 renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'low-power' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 scene = new THREE.Scene();
+scene.background = new THREE.Color('#0b2536'); // deep sea past the water plane
+scene.fog = new THREE.Fog('#0b2536', 28, 55);
 camera = new THREE.PerspectiveCamera(45, 1, 0.1, 200);
 raycaster = new THREE.Raycaster();
 
@@ -39,8 +41,8 @@ waterMat = new THREE.ShaderMaterial({
   fragmentShader: `
     uniform float t; varying vec2 vUv;
     void main(){
-      vec2 p = (vUv - 0.5) * 64.0;
-      float d = length(p) / 32.0;
+      vec2 p = (vUv - 0.5) * 140.0;
+      float d = length(p) / 34.0;
       vec3 deep = vec3(0.022, 0.095, 0.155);
       vec3 mid  = vec3(0.075, 0.27, 0.40);
       vec3 col = mix(mid, deep, smoothstep(0.10, 0.95, d));
@@ -51,7 +53,7 @@ waterMat = new THREE.ShaderMaterial({
       gl_FragColor = vec4(col, 1.0);
     }`,
 });
-const water = new THREE.Mesh(new THREE.PlaneGeometry(64, 64).rotateX(-Math.PI / 2), waterMat);
+const water = new THREE.Mesh(new THREE.PlaneGeometry(140, 140).rotateX(-Math.PI / 2), waterMat);
 water.position.y = -0.07;
 scene.add(water);
 
@@ -82,7 +84,7 @@ hexGeo.computeBoundingBox();
 hexTop = hexGeo.boundingBox.max.y;
 
 const shelfGeo = flatten(new THREE.ExtrudeGeometry(hexShape(1.17), { depth: 0.07, bevelEnabled: false }));
-const tokenGeo = new THREE.CylinderGeometry(0.30, 0.30, 0.05, 28);
+const tokenGeo = new THREE.CylinderGeometry(0.38, 0.38, 0.06, 28);
 const roadGeo = new THREE.BoxGeometry(0.58, 0.10, 0.13).translate(0, 0.05, 0);
 
 function prismGeo(points, depth) {
@@ -101,11 +103,10 @@ const robberGeo = new THREE.LatheGeometry([
   [0.07, 0.235], [0.095, 0.27], [0.075, 0.33], [0.001, 0.37],
 ].map(p => new THREE.Vector2(p[0], p[1])), 18);
 
-const hlRingGeo = new THREE.TorusGeometry(0.17, 0.035, 8, 24).rotateX(Math.PI / 2);
-const hlEdgeGeo = new THREE.BoxGeometry(0.55, 0.02, 0.16);
-const hexRingShape = hexShape(0.92);
-hexRingShape.holes.push(new THREE.Path(hexShape(0.78).getPoints()));
-const hlHexGeo = new THREE.ShapeGeometry(hexRingShape).rotateX(Math.PI / 2).translate(0, 0.02, 0);
+const hlRingGeo = new THREE.TorusGeometry(0.19, 0.05, 8, 24).rotateX(Math.PI / 2);
+const hlEdgeGeo = new THREE.BoxGeometry(0.55, 0.05, 0.20);
+// robber targets: fill the whole hex top — a thin ring was unreadable
+const hlHexGeo = new THREE.ShapeGeometry(hexShape(0.90)).rotateX(Math.PI / 2).translate(0, 0.02, 0);
 
 // ---------------------------------------------------------------- textures
 
@@ -188,26 +189,34 @@ function tokenTex(n) {
     g.strokeStyle = '#b8a87e'; g.lineWidth = 6;
     g.beginPath(); g.arc(s / 2, s / 2, s / 2 - 8, 0, 7); g.stroke();
     g.fillStyle = hot ? '#c0392b' : '#41382a';
-    g.font = `800 ${hot ? 64 : 56}px Georgia, serif`;
+    g.font = `800 ${hot ? 78 : 70}px Georgia, serif`;
     g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(n, s / 2, s / 2 + 4);
+    g.fillText(n, s / 2, s / 2 + 5);
   });
   return texCache[key];
 }
 
 function labelSprite(text) {
-  const tex = canvasTex((g, s) => {
-    g.clearRect(0, 0, s, s);
-    g.fillStyle = 'rgba(243,234,210,.95)';
-    roundRect(g, 8, 38, s - 16, 52, 14); g.fill();
-    g.strokeStyle = '#b8a87e'; g.lineWidth = 3; roundRect(g, 8, 38, s - 16, 52, 14); g.stroke();
-    g.fillStyle = '#41382a';
-    g.font = '800 30px Georgia, serif';
-    g.textAlign = 'center'; g.textBaseline = 'middle';
-    g.fillText(text, s / 2, 64);
-  });
+  const W = 256, H = 96;
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(243,234,210,.96)';
+  roundRect(g, 4, 14, W - 8, H - 28, 20); g.fill();
+  g.strokeStyle = '#b8a87e'; g.lineWidth = 4; roundRect(g, 4, 14, W - 8, H - 28, 20); g.stroke();
+  g.fillStyle = '#41382a';
+  let size = 46;
+  g.font = `800 ${size}px Georgia, serif`;
+  while (g.measureText(text).width > W - 36 && size > 18) { // shrink to fit — never truncate
+    size -= 2;
+    g.font = `800 ${size}px Georgia, serif`;
+  }
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText(text, W / 2, H / 2 + 2);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false }));
-  sp.scale.set(1.15, 1.15, 1);
+  sp.scale.set(1.7, 0.64, 1);
   return sp;
 }
 
@@ -282,7 +291,8 @@ function buildStatic(board) {
     boat.position.set(ox, 0, oy);
     boat.lookAt(0, 0, 0);
     staticGroup.add(boat);
-    const lbl = labelSprite(p.resource ? `2:1 ${p.resource}` : '3:1 any');
+    const PORT_EMOJI = { wood: '🌲', brick: '🧱', sheep: '🐑', wheat: '🌾', ore: '⛰' };
+    const lbl = labelSprite(p.resource ? `2:1 ${PORT_EMOJI[p.resource]}` : '3:1 ✶');
     lbl.position.set(ox, 0.75, oy);
     staticGroup.add(lbl);
     dashPts.push(new THREE.Vector3(v1.x, hexTop, v1.y), new THREE.Vector3(ox, 0.06, oy));
@@ -427,14 +437,25 @@ function fitCamera(board) {
     minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
   }
   cam.target.set((minX + maxX) / 2, 0, (minY + maxY) / 2);
-  const radius = Math.max(maxX - minX, maxY - minY) / 2 + 1.6;
+  const aspect = camera.aspect || 1;
+  // Portrait phones: look down more steeply (less foreshortening) and
+  // hug the island — the board, not the sea, should fill the screen.
+  const portrait = aspect < 0.8;
+  const defPhi = portrait ? 1.18 : 0.95;
+  const margin = portrait ? 0.55 : 1.1;
+  const radius = Math.max(maxX - minX, maxY - minY) / 2 + margin;
   const fov = camera.fov * Math.PI / 180;
   const dV = radius / Math.tan(fov / 2);
-  const dH = radius / (Math.tan(fov / 2) * Math.max(camera.aspect || 1, 0.3));
-  cam.base = Math.max(dV, dH) * 1.04;
-  if (!cam.moved) { cam.dist = cam.base; cam.theta = 0; cam.phi = 0.92; }
+  const dH = radius / (Math.tan(fov / 2) * Math.max(aspect, 0.3));
+  cam.base = Math.max(dV, dH) * 1.02;
+  if (!cam.moved) { cam.dist = cam.base; cam.theta = 0; cam.phi = defPhi; }
   cam.dist = Math.min(Math.max(cam.dist, cam.base * 0.45), cam.base * 1.8);
   applyCam();
+}
+
+export function resetCamera() {
+  cam.moved = false;
+  if (S && S.board) fitCamera(S.board);
 }
 
 function resize() {
@@ -498,6 +519,12 @@ canvas.addEventListener('pointerup', e => {
   }
 });
 canvas.addEventListener('pointercancel', e => ptrs.delete(e.pointerId));
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.dist = Math.min(Math.max(cam.dist * (1 + e.deltaY * 0.0011), cam.base * 0.45), cam.base * 1.8);
+  cam.moved = true;
+  applyCam();
+}, { passive: false });
 
 // ---------------------------------------------------------------- picking
 
@@ -523,16 +550,17 @@ function pick(e) {
     }
     return best;
   };
+  const miss = () => { if (navigator.vibrate) navigator.vibrate(12); };
   if (mode === 'settlement' || mode === 'city') {
     const ids = mode === 'settlement' ? S.legalSettlements : S.legalCities;
-    const id = nearest(ids, i => [b.verts[i].x, b.verts[i].y], 0.48);
-    if (id >= 0) window.tapVert(id);
+    const id = nearest(ids, i => [b.verts[i].x, b.verts[i].y], 0.5);
+    if (id >= 0) window.tapVert(id); else miss();
   } else if (mode === 'road') {
     const id = nearest(S.legalRoads, i => {
       const e2 = b.edges[i];
       return [(b.verts[e2.v1].x + b.verts[e2.v2].x) / 2, (b.verts[e2.v1].y + b.verts[e2.v2].y) / 2];
-    }, 0.45);
-    if (id >= 0) window.tapEdge(id);
+    }, 0.55);
+    if (id >= 0) window.tapEdge(id); else miss();
   } else if (mode === 'robber') {
     const ids = b.hexes.filter(h => h.id !== b.robber).map(h => h.id);
     const id = nearest(ids, i => [b.hexes[i].x, b.hexes[i].y], 1.0);
@@ -547,8 +575,10 @@ function frame(t) {
   if (t - lastFrame < 33) return; // ~30fps is plenty
   lastFrame = t;
   waterMat.uniforms.t.value = t / 1000;
-  const pulse = 0.45 + 0.3 * Math.sin(t / 170);
+  // floor the pulse — the affordance must never fade out of sight
+  const pulse = 0.72 + 0.18 * Math.sin(t / 170);
   for (const m of hlMats) m.opacity = pulse;
+  if (inst.hlH) inst.hlH.material.opacity = 0.30 + 0.10 * Math.sin(t / 170);
   if (robberTween && robberMesh) {
     const k = Math.min(1, (performance.now() - robberTween.t0) / 350);
     robberMesh.position.lerpVectors(robberTween.from, robberTween.to, k * k * (3 - 2 * k));
@@ -564,13 +594,33 @@ export function setVisible(on) {
   else if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
 }
 
-export function update(state, m) {
+// solid marker for a tap-selected, not-yet-confirmed placement
+const selMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.95, depthWrite: false });
+const selMesh = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.06, 8, 24).rotateX(Math.PI / 2), selMat);
+selMesh.visible = false;
+scene.add(selMesh);
+
+export function update(state, m, pending) {
   S = state;
   mode = m;
   if (!S.board) return;
   const key = S.board.hexes.map(h => h.terrain + h.number).join(',');
   if (key !== boardKey) { boardKey = key; buildStatic(S.board); }
   syncDynamic();
+  selMesh.visible = false;
+  if (pending && S.board) {
+    const b = S.board;
+    if (pending.kind === 'vert') {
+      const v = b.verts[pending.id];
+      selMesh.position.set(v.x, hexTop + 0.05, v.y);
+      selMesh.visible = true;
+    } else if (pending.kind === 'edge') {
+      const e = b.edges[pending.id];
+      const v1 = b.verts[e.v1], v2 = b.verts[e.v2];
+      selMesh.position.set((v1.x + v2.x) / 2, hexTop + 0.05, (v1.y + v2.y) / 2);
+      selMesh.visible = true;
+    }
+  }
 }
 
 // screen position of a board point (for fx overlays and tests)

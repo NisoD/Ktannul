@@ -1,0 +1,2 @@
+qrcode-generator v1.5.0 — MIT License — Kazuhiko Arase
+https://github.com/kazuhikoarase/qrcode-generator

@@ -114,10 +114,12 @@ type Game struct {
 	LongestRoadLen    int
 	LargestArmyPlayer int
 
-	Trade     *TradeOffer
-	Winner    int
-	Log       []LogEntry
-	LastGains []Gain // production from the most recent roll
+	Trade      *TradeOffer
+	Winner     int
+	Log        []LogEntry
+	LastGains  []Gain  // production from the most recent roll
+	RollCounts [13]int // dice histogram for end-of-game stats
+	JoinURL    string  // LAN address shown in the lobby (set at startup)
 
 	Version int
 	Changed chan struct{} // signaled (non-blocking) on every state change
@@ -180,6 +182,9 @@ func (g *Game) Join(name, token string, resume bool) (*Player, error) {
 	if name == "" {
 		return nil, errors.New("name required")
 	}
+	if r := []rune(name); len(r) > 16 { // rune-safe: never split multibyte chars
+		name = string(r[:16])
+	}
 	p := &Player{
 		ID:        len(g.Players),
 		Name:      name,
@@ -199,6 +204,9 @@ func (g *Game) Join(name, token string, resume bool) (*Player, error) {
 func (g *Game) ClaimSeat(id int) (*Player, error) {
 	g.Mu.Lock()
 	defer g.Mu.Unlock()
+	if g.Phase == PhaseLobby {
+		return nil, errors.New("game hasn't started — just join")
+	}
 	if id < 0 || id >= len(g.Players) {
 		return nil, errors.New("no such seat")
 	}
@@ -206,6 +214,9 @@ func (g *Game) ClaimSeat(id int) (*Player, error) {
 	if p.IsBot {
 		return nil, errors.New("that seat is a bot")
 	}
+	// Rotate the token so the previous device loses control — prevents a
+	// claimed seat from being driven from two places at once.
+	p.Token = newToken(g.Rng)
 	g.logf("%s's seat was resumed on a new device", p.Name)
 	g.notify()
 	return p, nil
@@ -319,6 +330,9 @@ func (g *Game) newGame(p *Player) error {
 	if g.Phase != PhaseEnded {
 		return errors.New("game not over")
 	}
+	if p.ID != 0 {
+		return errors.New("only the host can start a rematch")
+	}
 	g.beginGame()
 	g.logf("--- new game ---")
 	return nil
@@ -369,6 +383,7 @@ func (g *Game) beginGame() {
 	g.LargestArmyPlayer = -1
 	g.Trade = nil
 	g.Winner = -1
+	g.RollCounts = [13]int{}
 	g.logf("game started — place your first settlements")
 }
 
@@ -512,6 +527,7 @@ func (g *Game) roll(p *Player) error {
 	g.Rolled = true
 	g.LastGains = nil
 	total := g.DiceA + g.DiceB
+	g.RollCounts[total]++
 	g.logf("%s rolled %d", p.Name, total)
 	if total == 7 {
 		g.DiscardPending = map[int]int{}
@@ -969,6 +985,11 @@ func (g *Game) offerTrade(p *Player, give, get map[string]int) error {
 	if !validAmounts(give) || !validAmounts(get) || sum(give) == 0 || sum(get) == 0 {
 		return errors.New("offer must give and request at least one card")
 	}
+	for r, n := range give {
+		if n > 0 && get[r] > 0 {
+			return errors.New("can't trade a resource for itself")
+		}
+	}
 	if !p.has(give) {
 		return errors.New("you don't have those cards")
 	}
@@ -977,9 +998,24 @@ func (g *Game) offerTrade(p *Player, give, get map[string]int) error {
 	return nil
 }
 
-func (g *Game) respondTrade(p *Player, accept bool) error {
+// tradeOpen: a pending trade can only be acted on while the game is in
+// normal main-phase play (not during robber resolution or after the end).
+func (g *Game) tradeOpen() error {
 	if g.Trade == nil {
 		return errors.New("no trade pending")
+	}
+	if g.Phase != PhaseMain {
+		return errors.New("game not in play")
+	}
+	if len(g.DiscardPending) > 0 || g.RobberPending || g.StealPending {
+		return errors.New("resolve the robber first")
+	}
+	return nil
+}
+
+func (g *Game) respondTrade(p *Player, accept bool) error {
+	if err := g.tradeOpen(); err != nil {
+		return err
 	}
 	if p.ID == g.Trade.From {
 		return errors.New("you made this offer")
@@ -1003,7 +1039,10 @@ func (g *Game) respondTrade(p *Player, accept bool) error {
 }
 
 func (g *Game) confirmTrade(p *Player, with int) error {
-	if g.Trade == nil || g.Trade.From != p.ID {
+	if err := g.tradeOpen(); err != nil {
+		return err
+	}
+	if g.Trade.From != p.ID {
 		return errors.New("no trade to confirm")
 	}
 	ok := false
@@ -1089,6 +1128,7 @@ func (g *Game) checkWin() {
 	if g.Points(p, true) >= WinPoints {
 		g.Winner = p.ID
 		g.Phase = PhaseEnded
+		g.Trade = nil // a dangling offer must not execute post-game
 		g.logf("%s wins with %d points!", p.Name, g.Points(p, true))
 	}
 }
