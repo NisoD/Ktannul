@@ -1,2 +1,3 @@
 cattan
 *.log
+.cattan-state.gob*

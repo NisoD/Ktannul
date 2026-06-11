@@ -118,14 +118,17 @@
   #board { width: 100%; height: 100%; display: block; }
 
   /* board svg */
-  .hex { stroke: rgba(8,23,32,.85); stroke-width: 2.5; }
+  .hex { stroke: rgba(8,23,32,.7); stroke-width: 1.8; }
   .hex.clickable { cursor: pointer; }
   .hex.hl { stroke: #ffe16b; stroke-width: 4.5; }
-  .hex-rim { fill: none; stroke: rgba(255,255,255,.16); stroke-width: 1.4; pointer-events: none; }
+  .hex-side { stroke: rgba(5,15,22,.55); stroke-width: 1; pointer-events: none; }
+  .hex-gloss { pointer-events: none; }
+  .seawaves { animation: seaDrift 18s linear infinite; pointer-events: none; }
+  @keyframes seaDrift { to { transform: translateX(96px); } }
   .tok { fill: var(--parchment); stroke: #b8a87e; stroke-width: 1.6; }
+  .tok-ring { fill: none; stroke: rgba(122,91,30,.35); stroke-width: 1; pointer-events: none; }
   .tok-num { font-family: 'Cinzel', Georgia, serif; font-weight: 800; fill: #41382a; text-anchor: middle; }
   .tok-num.hot { fill: #c0392b; }
-  .pip { fill: #6b5e46; } .pip.hot { fill: #c0392b; }
   .edge-tap { stroke: transparent; stroke-width: 18; cursor: pointer; }
   .road-under { stroke: #10222e; stroke-width: 9.5; stroke-linecap: round; pointer-events: none; }
   .road { stroke-width: 6; stroke-linecap: round; pointer-events: none; }
@@ -227,6 +230,44 @@
   }
   #winBox { text-align: center; }
   #winBox .trophy { font-size: 64px; }
+
+  /* ---------- desktop / tablet: side panels, bigger UI ---------- */
+  @media (min-width: 920px) {
+    #game {
+      display: grid;
+      grid-template-columns: 280px 1fr 300px;
+      grid-template-rows: auto 1fr;
+      grid-template-areas:
+        "status status status"
+        "players board   bottom";
+    }
+    #status { grid-area: status; font-size: 17px; min-height: 48px; }
+    #boardWrap { grid-area: board; }
+    #players {
+      grid-area: players; flex-direction: column; overflow-y: auto;
+      gap: 12px; padding: 14px; align-content: start;
+      background: linear-gradient(90deg, #0e2230, var(--panel));
+      border-right: 1px solid rgba(233,180,76,.22); border-bottom: 0;
+    }
+    .pchip { font-size: 14px; padding: 12px 14px; gap: 6px; }
+    .pchip .nm { font-size: 17px; }
+    .pchip .st { font-size: 14.5px; gap: 12px; }
+    .pchip .badges { font-size: 12px; height: 15px; }
+    #bottom {
+      grid-area: bottom; justify-content: flex-start; gap: 16px; padding: 16px 14px;
+      background: linear-gradient(270deg, #241608, var(--wood-1));
+      border-top: 0; border-left: 2px solid rgba(233,180,76,.35);
+      box-shadow: -6px 0 18px rgba(0,0,0,.4);
+    }
+    #hand { flex-wrap: wrap; gap: 9px; }
+    .rcard { max-width: none; flex: 1 1 28%; font-size: 30px; padding: 12px 0 8px; border-radius: 14px; }
+    .rcard small { font-size: 22px; }
+    #actions { flex-direction: column; gap: 9px; }
+    #actions button { font-size: 16.5px; padding: 14px 10px; }
+    #actions button br { display: none; }
+    #actions button.roll { font-size: 22px; padding: 18px 10px; }
+    #log { font-size: 13px; max-height: 96px; }
+  }
 </style>
 </head>
 <body>
@@ -483,22 +524,33 @@ function boardDefs() {
       <circle cx="9.5" cy="-2.5" r="3.4" fill="#4d463c"/>
       <circle cx="10.6" cy="-3.2" r=".7" fill="#fff"/>
     </g>
-    <g id="i-wheat" stroke-linecap="round">
-      <g transform="translate(-7,0) rotate(-12)">
-        <line x1="0" y1="10" x2="0" y2="-8" stroke="#8a6b14" stroke-width="1.6"/>
-        <ellipse cx="-2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -7)"/>
-        <ellipse cx="2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -7)"/>
-        <ellipse cx="-2.4" cy="-1.5" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -1.5)"/>
-        <ellipse cx="2.4" cy="-1.5" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -1.5)"/>
-        <ellipse cx="0" cy="-10.5" rx="2.1" ry="3.6" fill="#f0c52e"/>
-      </g>
-      <g transform="translate(7,1) rotate(14)">
-        <line x1="0" y1="10" x2="0" y2="-8" stroke="#8a6b14" stroke-width="1.6"/>
-        <ellipse cx="-2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -7)"/>
-        <ellipse cx="2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -7)"/>
-        <ellipse cx="0" cy="-10.5" rx="2.1" ry="3.6" fill="#f0c52e"/>
-      </g>
+    <g id="wheat-stalk">
+      <path d="M0 12 C 0 6 0 0 0 -7" fill="none" stroke="#9a720e" stroke-width="1.7" stroke-linecap="round"/>
+      <path d="M0 -7 L-1.8 -14 M0 -7 L0 -15 M0 -7 L1.8 -14" stroke="#caa125" stroke-width=".9" stroke-linecap="round"/>
+      <ellipse cx="-2.6" cy="-6.2" rx="1.9" ry="3.6" fill="#f2c63d" stroke="#c08c12" stroke-width=".7" transform="rotate(32 -2.6 -6.2)"/>
+      <ellipse cx="2.6" cy="-6.2" rx="1.9" ry="3.6" fill="#eab429" stroke="#c08c12" stroke-width=".7" transform="rotate(-32 2.6 -6.2)"/>
+      <ellipse cx="-2.6" cy="-1.8" rx="1.9" ry="3.6" fill="#eab429" stroke="#c08c12" stroke-width=".7" transform="rotate(32 -2.6 -1.8)"/>
+      <ellipse cx="2.6" cy="-1.8" rx="1.9" ry="3.6" fill="#f2c63d" stroke="#c08c12" stroke-width=".7" transform="rotate(-32 2.6 -1.8)"/>
+      <ellipse cx="-2.6" cy="2.6" rx="1.9" ry="3.6" fill="#f2c63d" stroke="#c08c12" stroke-width=".7" transform="rotate(32 -2.6 2.6)"/>
+      <ellipse cx="2.6" cy="2.6" rx="1.9" ry="3.6" fill="#eab429" stroke="#c08c12" stroke-width=".7" transform="rotate(-32 2.6 2.6)"/>
+      <ellipse cx="0" cy="-9.6" rx="1.9" ry="3.8" fill="#f7d35a" stroke="#c08c12" stroke-width=".7"/>
     </g>
+    <g id="i-wheat">
+      <use href="#wheat-stalk" transform="translate(-8.5,1.5) rotate(-16) scale(.82)"/>
+      <use href="#wheat-stalk" transform="translate(8.5,1.5) rotate(16) scale(.82)"/>
+      <use href="#wheat-stalk" transform="translate(0,-1)"/>
+      <path d="M-4.5 8.5 Q0 11.5 4.5 8.5" fill="none" stroke="#8a5a10" stroke-width="2.2" stroke-linecap="round"/>
+    </g>
+
+    <pattern id="waves" width="96" height="64" patternUnits="userSpaceOnUse">
+      <path d="M6 18 q 10 -9 20 0 t 20 0" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="2.6" stroke-linecap="round"/>
+      <path d="M50 48 q 10 -9 20 0 t 20 0" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="2.2" stroke-linecap="round"/>
+    </pattern>
+    <linearGradient id="g-gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,.26)"/>
+      <stop offset="45%" stop-color="rgba(255,255,255,.06)"/>
+      <stop offset="100%" stop-color="rgba(0,0,0,.10)"/>
+    </linearGradient>
     <g id="i-ore">
       <path d="M-13 9 L-4 -8 L3 9 Z" fill="#7d828d" stroke="#565b66" stroke-width="1"/>
       <path d="M-1 9 L7 -4 L14 9 Z" fill="#626771" stroke="#454a54" stroke-width="1"/>
@@ -546,8 +598,27 @@ function renderBoard() {
 
   let out = boardDefs();
 
-  // hexes
+  // open sea: drifting wave pattern across the whole view
+  out += `<rect class="seawaves" x="${minX - pad - 96}" y="${minY - pad}"
+    width="${maxX - minX + 2 * pad + 192}" height="${maxY - minY + 2 * pad}" fill="url(#waves)"/>`;
+
+  // island shelf: deep shadow + sandy shallows hugging the hex cluster
+  const scaledHex = (h, f, dy) => hexCorners(h)
+    .map(([x, y]) => `${h.x * SC + (x - h.x * SC) * f},${h.y * SC + (y - h.y * SC) * f + dy}`).join(' ');
+  for (const h of B.hexes) out += `<polygon points="${scaledHex(h, 1.22, 9)}" fill="rgba(5,17,26,.42)"/>`;
+  for (const h of B.hexes) out += `<polygon points="${scaledHex(h, 1.16, 4)}" fill="rgba(226,204,150,.16)"/>`;
+
   const robberMode = mode === 'robber';
+  const DEPTH = 7;
+
+  // 3D tile sides first, so every top face overlaps its neighbours' sides
+  const SIDE = { wood:'#1b4f27', brick:'#7e3a16', sheep:'#5f8324', wheat:'#9c7710', ore:'#474b54', desert:'#a98d56' };
+  for (const h of B.hexes) {
+    const down = hexCorners(h).map(([x, y]) => `${x},${y + DEPTH}`).join(' ');
+    out += `<polygon class="hex-side" points="${down}" fill="${SIDE[h.terrain]}"/>`;
+  }
+
+  // tile tops
   for (const h of B.hexes) {
     const corners = hexCorners(h);
     const pts = corners.map(p => p.join(',')).join(' ');
@@ -555,17 +626,14 @@ function renderBoard() {
     const cx = h.x * SC, cy = h.y * SC;
     out += `<polygon class="hex ${click ? 'clickable hl' : ''}" points="${pts}" fill="${HEX_GRAD[h.terrain]}"
       ${click ? `onclick="tapHex(${h.id})"` : ''}/>
-      <polygon class="hex-rim" points="${corners.map(([x, y]) => `${cx + (x - cx) * .92},${cy + (y - cy) * .92}`).join(' ')}"/>`;
-    out += `<use href="#i-${h.terrain}" x="${cx}" y="${cy - (h.number ? 15 : 2)}" style="pointer-events:none"/>`;
+      <polygon class="hex-gloss" points="${pts}" fill="url(#g-gloss)"/>`;
+    out += `<use href="#i-${h.terrain}" x="${cx}" y="${cy - (h.number ? 13 : 2)}" style="pointer-events:none"/>`;
     if (h.number) {
       const hot = h.number === 6 || h.number === 8;
-      const nPips = 6 - Math.abs(7 - h.number);
-      let pips = '';
-      for (let i = 0; i < nPips; i++) {
-        pips += `<circle class="pip ${hot ? 'hot' : ''}" cx="${cx + (i - (nPips - 1) / 2) * 4.6}" cy="${cy + 23.5}" r="1.5"/>`;
-      }
-      out += `<circle class="tok" cx="${cx}" cy="${cy + 17}" r="14.5" style="pointer-events:none"/>
-        <text class="tok-num ${hot ? 'hot' : ''}" x="${cx}" y="${cy + 17 + 5.5}" font-size="${hot ? 17 : 14.5}" style="pointer-events:none">${h.number}</text>${pips}`;
+      out += `<ellipse cx="${cx}" cy="${cy + 19.5}" rx="14" ry="4.5" fill="rgba(0,0,0,.22)" style="pointer-events:none"/>
+        <circle class="tok" cx="${cx}" cy="${cy + 16}" r="14.5" style="pointer-events:none"/>
+        <circle class="tok-ring" cx="${cx}" cy="${cy + 16}" r="11.5"/>
+        <text class="tok-num ${hot ? 'hot' : ''}" x="${cx}" y="${cy + 16 + 5.8}" font-size="${hot ? 18 : 15}" style="pointer-events:none">${h.number}</text>`;
     }
     if (h.id === B.robber) {
       out += `<use href="#robber" x="${cx}" y="${cy - (h.number ? 16 : 4)}" style="pointer-events:none"/>`;
@@ -662,7 +730,7 @@ function renderActions() {
     return;
   }
   if (!S.rolled) {
-    const knight = S.you.devCards.some(c => c.type === 'knight' && c.playable);
+    const knight = (S.you.devCards || []).some(c => c.type === 'knight' && c.playable);
     a.innerHTML = `<button class="primary roll" style="flex:2.4" onclick="api('roll')" ${S.robberPending || S.stealPending ? 'disabled' : ''}>🎲 ROLL DICE</button>
       ${knight ? `<button onclick="playCard('knight')">⚔️<br>Knight</button>` : ''}`;
     return;
@@ -776,7 +844,7 @@ function stealHTML() {
 }
 
 function devHTML() {
-  const cards = S.you.devCards;
+  const cards = S.you.devCards || [];
   const counts = {};
   cards.forEach(c => {
     counts[c.type] = counts[c.type] || { n: 0, playable: false };

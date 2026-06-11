@@ -141,6 +141,7 @@ func (g *Game) ViewFor(token string) *View {
 		Color:     p.Color,
 		Resources: p.Resources,
 		Points:    g.Points(p, true),
+		DevCards:  []DevCardView{}, // never null in JSON
 	}
 	canPlay := g.Phase == PhaseMain && g.Turn == p.ID && !g.PlayedDevThisTurn &&
 		len(g.DiscardPending) == 0 && !g.RobberPending && !g.StealPending

@@ -9,6 +9,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -19,8 +20,9 @@ import (
 var webFS embed.FS
 
 type server struct {
-	g  *game.Game
-	mu sync.Mutex
+	g         *game.Game
+	statePath string
+	mu        sync.Mutex
 	// each connected SSE client gets a kick channel; on game change we
 	// kick everyone and they re-render their personalized view
 	clients map[chan struct{}]bool
@@ -28,14 +30,29 @@ type server struct {
 
 func main() {
 	addr := flag.String("addr", ":8080", "listen address")
+	statePath := flag.String("state", ".cattan-state.gob", "file for game state persistence")
 	flag.Parse()
 
-	s := &server{g: game.New(), clients: map[chan struct{}]bool{}}
+	g, err := game.Load(*statePath)
+	if err != nil {
+		g = game.New()
+	} else {
+		fmt.Println("Restored saved game state.")
+	}
+	s := &server{g: g, statePath: *statePath, clients: map[chan struct{}]bool{}}
 	go s.fanout()
 
-	staticFS, _ := fs.Sub(webFS, "web")
+	// Serve the UI from ./web when present (live-editable without a
+	// rebuild); fall back to the copy embedded in the binary.
+	var static http.Handler
+	if _, err := os.Stat("web/index.html"); err == nil {
+		static = http.FileServer(http.Dir("web"))
+	} else {
+		staticFS, _ := fs.Sub(webFS, "web")
+		static = http.FileServer(http.FS(staticFS))
+	}
 	mux := http.NewServeMux()
-	mux.Handle("/", http.FileServer(http.FS(staticFS)))
+	mux.Handle("/", static)
 	mux.HandleFunc("POST /api/join", s.handleJoin)
 	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
@@ -49,9 +66,13 @@ func main() {
 	log.Fatal(http.ListenAndServe(*addr, mux))
 }
 
-// fanout kicks every connected client whenever the game state changes.
+// fanout kicks every connected client whenever the game state changes,
+// and checkpoints the game to disk so restarts resume mid-game.
 func (s *server) fanout() {
 	for range s.g.Changed {
+		if err := s.g.Save(s.statePath); err != nil {
+			log.Printf("save state: %v", err)
+		}
 		s.mu.Lock()
 		for ch := range s.clients {
 			select {
