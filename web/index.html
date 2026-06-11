@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#0b2536">
 <title>Catan</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎲</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
@@ -15,7 +16,8 @@
   } catch (e) {
     window.board3dFailed = true;
   }
-  if (window.S && window.render) render();
+  // re-render once the 3D module is ready (state may have drawn SVG first)
+  if (typeof render === 'function' && typeof S !== 'undefined' && S) render();
 </script>
 <style>
   :root {
@@ -359,9 +361,16 @@
 
 <div id="joinScreen" class="screen">
   <h1>CATAN<small>SETTLERS · LAN</small></h1>
-  <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
-  <button class="primary" style="width:250px;padding:13px" onclick="join()">Join game</button>
-  <div class="hint">Everyone on the same wifi opens this address to play. 2–4 players.</div>
+  <div id="claimBox" class="hidden" style="display:flex;flex-direction:column;gap:8px;align-items:center">
+    <div class="hint" style="font-weight:700;color:var(--gold)">Game in progress — tap your name to resume:</div>
+    <div class="lobby-list" id="claimList"></div>
+    <div class="hint">…or wait for this game to finish.</div>
+  </div>
+  <div id="joinBox" style="display:flex;flex-direction:column;gap:16px;align-items:center">
+    <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
+    <button class="primary" style="width:250px;padding:13px" onclick="join()">Join game</button>
+    <div class="hint">Everyone on the same wifi opens this address to play. 2–4 players.</div>
+  </div>
 </div>
 
 <div id="lobbyScreen" class="screen hidden">
@@ -526,7 +535,7 @@ function show(id) {
 
 function render() {
   if (!S) return;
-  if (!S.you) { show('joinScreen'); return; }
+  if (!S.you) { show('joinScreen'); renderClaim(); return; }
   if (S.phase === 'lobby') { renderLobby(); return; }
   // hot-seat: jump to whichever local seat must act
   const need = neededSeat();
@@ -556,6 +565,28 @@ function render() {
   renderActions();
   renderLog();
   autoModal();
+}
+
+// game already running and we hold no seat → offer to resume one
+function renderClaim() {
+  const running = S && S.phase !== 'lobby' && S.players && S.players.length;
+  el('claimBox').classList.toggle('hidden', !running);
+  el('joinBox').classList.toggle('hidden', !!running);
+  if (!running) return;
+  el('claimList').innerHTML = S.players.filter(p => !p.isBot).map(p =>
+    `<button class="lobby-row" style="border:0;justify-content:flex-start" onclick="claimSeat(${p.id})">
+      <span class="dot" style="background:${p.color}"></span>${esc(p.name)}</button>`
+  ).join('');
+}
+
+async function claimSeat(id) {
+  const r = await fetch('/api/join', { method: 'POST', body: JSON.stringify({ claim: id }) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error);
+  if (!seats.some(s => s.id === d.id)) seats.push({ name: d.name, token: d.token, id: d.id });
+  saveSeats();
+  active = seats.findIndex(s => s.id === d.id);
+  connect();
 }
 
 function renderLobby() {
@@ -1328,10 +1359,13 @@ if (seats.length) {
   fetch('/api/join', { method: 'POST', body: JSON.stringify({ token: seats[0].token, resume: true }) })
     .then(r => r.json().then(d => ({ ok: r.ok, d })))
     .then(({ ok, d }) => {
-      if (ok && d.token === seats[0].token) { active = 0; connect(); }
+      if (ok && d.token === seats[0].token) { active = 0; }
       else { localStorage.removeItem('catan_seats'); seats = []; }
+      connect(); // even tokenless: public state drives the resume-seat list
     })
     .catch(() => {});
+} else {
+  connect(); // spectator stream so the join screen knows the game phase
 }
 </script>
 </body>

@@ -193,6 +193,24 @@ func (g *Game) Join(name, token string, resume bool) (*Player, error) {
 	return p, nil
 }
 
+// ClaimSeat hands out the credentials for an existing human seat — the
+// recovery path when a device lost its token (new browser, cleared
+// storage, joined via a different hostname). Trusted-LAN tradeoff.
+func (g *Game) ClaimSeat(id int) (*Player, error) {
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	if id < 0 || id >= len(g.Players) {
+		return nil, errors.New("no such seat")
+	}
+	p := g.Players[id]
+	if p.IsBot {
+		return nil, errors.New("that seat is a bot")
+	}
+	g.logf("%s's seat was resumed on a new device", p.Name)
+	g.notify()
+	return p, nil
+}
+
 func newToken(rng *rand.Rand) string {
 	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
 	b := make([]byte, 24)

@@ -100,6 +100,7 @@ func (s *server) handleJoin(w http.ResponseWriter, r *http.Request) {
 		Name   string `json:"name"`
 		Token  string `json:"token"`
 		Resume bool   `json:"resume"`
+		Claim  *int   `json:"claim"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeJSON(w, 400, map[string]string{"error": "bad request"})
@@ -108,7 +109,13 @@ func (s *server) handleJoin(w http.ResponseWriter, r *http.Request) {
 	if len(req.Name) > 16 {
 		req.Name = req.Name[:16]
 	}
-	p, err := s.g.Join(req.Name, req.Token, req.Resume)
+	var p *game.Player
+	var err error
+	if req.Claim != nil {
+		p, err = s.g.ClaimSeat(*req.Claim)
+	} else {
+		p, err = s.g.Join(req.Name, req.Token, req.Resume)
+	}
 	if err != nil {
 		writeJSON(w, 400, map[string]string{"error": err.Error()})
 		return

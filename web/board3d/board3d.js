@@ -573,13 +573,30 @@ export function update(state, m) {
   syncDynamic();
 }
 
-// screen position of a hex center (for the page's fly-up effects)
+// screen position of a board point (for fx overlays and tests)
+export function boardToScreen(x, y) {
+  const v = new THREE.Vector3(x, hexTop, y).project(camera);
+  const r = canvas.getBoundingClientRect();
+  return [r.left + (v.x * 0.5 + 0.5) * r.width, r.top + (-v.y * 0.5 + 0.5) * r.height];
+}
+
 export function hexToScreen(hexId) {
   if (!S || !S.board) return null;
   const h = S.board.hexes[hexId];
-  const v = new THREE.Vector3(h.x, hexTop, h.y).project(camera);
-  const r = canvas.getBoundingClientRect();
-  return [r.left + (v.x * 0.5 + 0.5) * r.width, r.top + (-v.y * 0.5 + 0.5) * r.height];
+  return boardToScreen(h.x, h.y);
+}
+
+export function vertToScreen(vid) {
+  if (!S || !S.board) return null;
+  const v = S.board.verts[vid];
+  return boardToScreen(v.x, v.y);
+}
+
+export function edgeToScreen(eid) {
+  if (!S || !S.board) return null;
+  const e = S.board.edges[eid];
+  const v1 = S.board.verts[e.v1], v2 = S.board.verts[e.v2];
+  return boardToScreen((v1.x + v2.x) / 2, (v1.y + v2.y) / 2);
 }
 
 document.addEventListener('visibilitychange', () => {
