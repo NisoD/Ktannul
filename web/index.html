@@ -282,7 +282,17 @@
 <div id="lobbyScreen" class="screen hidden">
   <h1>LOBBY</h1>
   <div class="lobby-list" id="lobbyList"></div>
-  <button class="primary hidden" id="startBtn" style="width:250px;padding:13px" onclick="api('start')">Start game</button>
+  <div id="lobbyControls" style="display:flex;flex-direction:column;gap:8px;width:250px">
+    <div style="display:flex;gap:6px">
+      <input id="addNameInput" maxlength="16" placeholder="Add player (this device)" style="width:auto;flex:1;font-size:15px;padding:10px 12px">
+      <button onclick="join('addNameInput')" style="width:52px;font-size:20px">＋</button>
+    </div>
+    <div id="botControls" class="hidden" style="display:flex;gap:6px">
+      <button style="flex:1" onclick="apiHost('addBot')">🤖 Add bot</button>
+      <button style="flex:1" onclick="apiHost('removeBot')">− Bot</button>
+    </div>
+  </div>
+  <button class="primary hidden" id="startBtn" style="width:250px;padding:13px" onclick="apiHost('start')">Start game</button>
   <div class="hint" id="lobbyHint"></div>
 </div>
 
@@ -312,7 +322,14 @@ const DEV_NAMES = { knight:'Knight', victory:'Victory Point', roadBuilding:'Road
 const COSTS_TXT = { road:'🌲🧱', settlement:'🌲🧱🐑🌾', city:'🌾🌾⛰️⛰️⛰️', dev:'🐑🌾⛰️' };
 const SC = 60; // board scale
 
-let token = localStorage.getItem('catan_token') || '';
+// Seats: every player controlled from THIS device (hot-seat support).
+let seats = [];
+try { seats = JSON.parse(localStorage.getItem('catan_seats') || '[]'); } catch (e) {}
+let active = 0;
+const tok = () => seats[active] ? seats[active].token : '';
+const saveSeats = () => localStorage.setItem('catan_seats', JSON.stringify(seats));
+const seatOf = (id) => seats.findIndex(s => s.id === id);
+
 let S = null;          // latest server state
 let mode = null;       // road | settlement | city | robber
 let modal = null;      // current modal name
@@ -322,27 +339,30 @@ let lastDiceKey = '';
 
 // ---------- networking ----------
 
-async function join() {
-  const name = document.getElementById('nameInput').value.trim();
+async function join(inputId = 'nameInput') {
+  const inp = document.getElementById(inputId);
+  const name = inp.value.trim();
   if (!name) return toast('Enter a name');
-  const r = await fetch('/api/join', { method:'POST', body: JSON.stringify({ name, token }) });
+  const r = await fetch('/api/join', { method:'POST', body: JSON.stringify({ name }) });
   const d = await r.json();
   if (!r.ok) return toast(d.error);
-  token = d.token;
-  localStorage.setItem('catan_token', token);
+  seats.push({ name: d.name, token: d.token, id: d.id });
+  saveSeats();
+  active = seats.length - 1;
+  inp.value = '';
   connect();
 }
 
 function connect() {
   if (es) es.close();
-  es = new EventSource('/api/events?token=' + encodeURIComponent(token));
+  es = new EventSource('/api/events?token=' + encodeURIComponent(tok()));
   es.onmessage = (ev) => { S = JSON.parse(ev.data); render(); };
 }
 
 async function api(type, extra = {}) {
   const r = await fetch('/api/action', {
     method: 'POST',
-    body: JSON.stringify(Object.assign({ token, type }, extra)),
+    body: JSON.stringify(Object.assign({ token: tok(), type }, extra)),
   });
   if (!r.ok) {
     const d = await r.json().catch(() => ({ error: 'request failed' }));
@@ -350,6 +370,37 @@ async function api(type, extra = {}) {
     return false;
   }
   return true;
+}
+
+// host-only actions are sent with the seat-0 token regardless of active seat
+async function apiHost(type) {
+  const i = seatOf(0);
+  if (i === -1) return toast('Only the host can do that');
+  const r = await fetch('/api/action', { method:'POST', body: JSON.stringify({ token: seats[i].token, type }) });
+  if (!r.ok) toast((await r.json().catch(() => ({ error: 'request failed' }))).error);
+}
+
+// Which local seat does the game need input from right now?
+function neededSeat() {
+  if (!S || S.phase === 'lobby' || S.phase === 'ended') return -1;
+  if (S.waitDiscard && S.waitDiscard.length) {
+    for (const id of S.waitDiscard) {
+      const i = seatOf(id);
+      if (i !== -1 && !pl(id).isBot) return i;
+    }
+    return -1;
+  }
+  if (S.phase === 'setup') return seatOf(S.setupPlayer);
+  if (S.trade) {
+    const t = S.trade;
+    const resp = [...(t.accepted || []), ...(t.rejected || [])];
+    for (const s of seats) {
+      if (s.id !== t.from && !resp.includes(s.id)) return seatOf(s.id);
+    }
+    const i = seatOf(t.from);
+    if (i !== -1) return i;
+  }
+  return seatOf(S.turn);
 }
 
 let toastTimer = null;
@@ -379,6 +430,14 @@ function render() {
   if (!S) return;
   if (!S.you) { show('joinScreen'); return; }
   if (S.phase === 'lobby') { renderLobby(); return; }
+  // hot-seat: jump to whichever local seat must act
+  const need = neededSeat();
+  if (need !== -1 && need !== active) {
+    active = need;
+    if (seats.length > 1) toast(`👉 ${seats[active].name}, you're up!`);
+    connect();
+    return; // fresh personalized state arrives on the new stream
+  }
   show('game');
   syncMode();
   renderPlayers();
@@ -393,12 +452,16 @@ function render() {
 function renderLobby() {
   show('lobbyScreen');
   el('lobbyList').innerHTML = S.players.map(p =>
-    `<div class="lobby-row"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === 0 ? ' 👑' : ''}</div>`
+    `<div class="lobby-row"><span class="dot" style="background:${p.color}"></span>
+      ${p.isBot ? '🤖 ' : ''}${esc(p.name)}${p.id === 0 ? ' 👑' : ''}${seatOf(p.id) !== -1 ? ' <small style="color:var(--muted)">📱</small>' : ''}</div>`
   ).join('');
-  el('startBtn').classList.toggle('hidden', me() !== 0);
+  const host = seatOf(0) !== -1;
+  el('lobbyControls').classList.toggle('hidden', S.players.length >= 4);
+  el('botControls').classList.toggle('hidden', !host);
+  el('startBtn').classList.toggle('hidden', !host);
   el('startBtn').disabled = S.players.length < 2;
-  el('lobbyHint').textContent = me() === 0
-    ? (S.players.length < 2 ? 'Waiting for at least 2 players…' : 'Ready when you are!')
+  el('lobbyHint').textContent = host
+    ? (S.players.length < 2 ? 'Add players on this device, add a 🤖 bot, or wait for others to join over wifi.' : 'Ready when you are!')
     : 'Waiting for the host to start…';
 }
 
@@ -423,7 +486,7 @@ function renderPlayers() {
     const badges = [p.longestRoad ? '🛣️ LR' : '', p.largestArmy ? '⚔️ LA' : ''].filter(Boolean).join('  ');
     const pts = p.id === me() ? S.you.points : p.points;
     return `<div class="pchip ${turn ? 'turn' : ''}">
-      <span class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === me() ? ' (you)' : ''}</span>
+      <span class="nm"><span class="dot" style="background:${p.color}"></span>${p.isBot ? '🤖 ' : ''}${esc(p.name)}${p.id === me() ? ' (you)' : ''}</span>
       <span class="st"><b style="color:var(--gold)">★${pts}</b> 🎴${p.cards} 📜${p.devCards} ⚔️${p.knights}</span>
       <span class="badges">${badges}</span>
     </div>`;
@@ -462,7 +525,9 @@ function dieSVG(n) {
 
 function renderStatus() {
   const dice = S.diceA ? `<span id="dice">${dieSVG(S.diceA)}${dieSVG(S.diceB)}</span>` : '';
-  el('statusInner').innerHTML = `${dice}<span>${statusText()}</span>`;
+  const seat = seats.length > 1 && S.you
+    ? `<b style="color:${S.you.color}">${esc(S.you.name)}</b><span style="color:var(--muted)"> · </span>` : '';
+  el('statusInner').innerHTML = `${dice}<span>${seat}${statusText()}</span>`;
   // shake the dice when a new roll arrives
   const key = S.diceA ? `${S.turn}-${S.diceA}-${S.diceB}-${S.rolled}` : '';
   if (S.diceA && key !== lastDiceKey) {
@@ -1013,13 +1078,15 @@ function esc(s) {
 // ---------- boot ----------
 
 el('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
-if (token) {
-  // try to resume an existing seat
-  fetch('/api/join', { method: 'POST', body: JSON.stringify({ token, resume: true }) })
+el('addNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join('addNameInput'); });
+localStorage.removeItem('catan_token'); // pre-hot-seat storage key
+if (seats.length) {
+  // try to resume our seats from a previous session
+  fetch('/api/join', { method: 'POST', body: JSON.stringify({ token: seats[0].token, resume: true }) })
     .then(r => r.json().then(d => ({ ok: r.ok, d })))
     .then(({ ok, d }) => {
-      if (ok && d.token === token) connect();
-      else { localStorage.removeItem('catan_token'); token = ''; }
+      if (ok && d.token === seats[0].token) { active = 0; connect(); }
+      else { localStorage.removeItem('catan_seats'); seats = []; }
     })
     .catch(() => {});
 }

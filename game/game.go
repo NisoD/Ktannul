@@ -43,6 +43,7 @@ type Player struct {
 	Roads     int // pieces placed
 	Setts     int
 	Cities    int
+	IsBot     bool
 }
 
 func (p *Player) HandSize() int {
@@ -228,6 +229,10 @@ func (g *Game) dispatch(p *Player, a Action) error {
 		return g.start(p)
 	case "newGame":
 		return g.newGame(p)
+	case "addBot":
+		return g.addBot(p)
+	case "removeBot":
+		return g.removeBot(p)
 	case "placeSetupSettlement":
 		return g.placeSetupSettlement(p, a.Vertex)
 	case "placeSetupRoad":

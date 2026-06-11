@@ -57,6 +57,7 @@ type PlayerView struct {
 	Points      int    `json:"points"` // public points only
 	LongestRoad bool   `json:"longestRoad"`
 	LargestArmy bool   `json:"largestArmy"`
+	IsBot       bool   `json:"isBot"`
 	RoadsLeft   int    `json:"roadsLeft"`
 	SettsLeft   int    `json:"settsLeft"`
 	CitiesLeft  int    `json:"citiesLeft"`
@@ -103,6 +104,7 @@ func (g *Game) ViewFor(token string) *View {
 			Points:      g.Points(pl, false),
 			LongestRoad: g.LongestRoadPlayer == pl.ID,
 			LargestArmy: g.LargestArmyPlayer == pl.ID,
+			IsBot:       pl.IsBot,
 			RoadsLeft:   MaxRoads - pl.Roads,
 			SettsLeft:   MaxSetts - pl.Setts,
 			CitiesLeft:  MaxCities - pl.Cities,

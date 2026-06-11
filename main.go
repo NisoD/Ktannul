@@ -41,6 +41,11 @@ func main() {
 	}
 	s := &server{g: g, statePath: *statePath, clients: map[chan struct{}]bool{}}
 	go s.fanout()
+	go func() { // paced bot play
+		for range time.Tick(800 * time.Millisecond) {
+			s.g.BotStep()
+		}
+	}()
 
 	// Serve the UI from ./web when present (live-editable without a
 	// rebuild); fall back to the copy embedded in the binary.
