@@ -8,6 +8,15 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script type="module">
+  try {
+    window.board3d = await import('./board3d/board3d.js');
+  } catch (e) {
+    window.board3dFailed = true;
+  }
+  if (window.S && window.render) render();
+</script>
 <style>
   :root {
     --sea-1: #11445f;
@@ -125,6 +134,7 @@
       radial-gradient(circle at 50% 38%, #1d6286 0%, var(--sea-1) 52%, var(--sea-2) 100%);
   }
   #board { width: 100%; height: 100%; display: block; }
+  #board3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
 
   /* board svg */
   .hex { stroke: rgba(8,23,32,.7); stroke-width: 1.8; }
@@ -376,6 +386,7 @@
   <div id="status"><span id="statusInner"></span><button id="helpBtn" onclick="openModal('help')">?</button></div>
   <div id="boardWrap">
     <svg id="board"></svg>
+    <canvas id="board3d" class="hidden"></canvas>
     <div id="diceStage" class="hidden"><div id="diceInner">
       <div class="cube" id="cubeA"></div><div class="cube" id="cubeB"></div>
     </div></div>
@@ -393,6 +404,14 @@
 
 <script>
 'use strict';
+
+// persistent sprite sheet: gradients/icons usable from the board, hand,
+// and modals regardless of which board renderer is active
+const spriteHost = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+spriteHost.setAttribute('aria-hidden', 'true');
+spriteHost.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+document.body.prepend(spriteHost);
+spriteHost.innerHTML = boardDefs(); // function declaration below — hoisted
 
 const RES = ['wood','brick','sheep','wheat','ore'];
 const RES_EMOJI = { wood:'🌲', brick:'🧱', sheep:'🐑', wheat:'🌾', ore:'⛰️' };
@@ -667,7 +686,14 @@ function spawnGains(gains) {
   gains.forEach((gn, i) => {
     const h = hexById[gn.hex];
     if (!h) return;
-    const [sx, sy] = svgToScreen(h.x * SC, h.y * SC);
+    let sx, sy;
+    if (use3D() && window.board3d.hexToScreen) {
+      const p = window.board3d.hexToScreen(gn.hex);
+      if (!p) return;
+      [sx, sy] = p;
+    } else {
+      [sx, sy] = svgToScreen(h.x * SC, h.y * SC);
+    }
     const d = document.createElement('div');
     d.className = 'gainchip';
     d.style.left = sx + 'px';
@@ -698,7 +724,9 @@ function hexCorners(h) {
   return pts;
 }
 
-// SVG defs: terrain gradients + hand-drawn terrain icons, robber, ship
+// SVG defs: terrain gradients + hand-drawn terrain icons, robber, ship.
+// Injected once into a persistent sprite <svg> so icons keep working in
+// modals and the hand even when the SVG board is hidden (3D mode).
 function boardDefs() {
   const grad = (id, c1, c2) =>
     `<radialGradient id="${id}" cx="50%" cy="38%" r="80%">
@@ -799,7 +827,40 @@ function boardDefs() {
 
 const HEX_GRAD = { wood:'url(#g-wood)', brick:'url(#g-brick)', sheep:'url(#g-sheep)', wheat:'url(#g-wheat)', ore:'url(#g-ore)', desert:'url(#g-desert)' };
 
+// ---------- renderer dispatch: 3D (Three.js) with SVG fallback ----------
+
+function use3D() {
+  if (localStorage.getItem('catan_2d') === '1') return false;
+  return !window.board3dFailed && window.board3d;
+}
+
 function renderBoard() {
+  const on3d = use3D();
+  el('board').classList.toggle('hidden', !!on3d);
+  el('board3d').classList.toggle('hidden', !on3d);
+  if (on3d) {
+    try {
+      window.board3d.setVisible(true);
+      window.board3d.update(S, mode);
+      return;
+    } catch (e) {
+      window.board3dFailed = true;
+      el('board').classList.remove('hidden');
+      el('board3d').classList.add('hidden');
+    }
+  } else if (window.board3d) {
+    window.board3d.setVisible(false);
+  }
+  renderBoardSVG();
+}
+
+function toggle2D() {
+  localStorage.setItem('catan_2d', use3D() ? '1' : '0');
+  closeModal();
+  renderBoard();
+}
+
+function renderBoardSVG() {
   const B = S.board;
   if (!B) return;
   const svg = el('board');
@@ -811,7 +872,7 @@ function renderBoard() {
   const pad = 56;
   svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`);
 
-  let out = boardDefs();
+  let out = '';
 
   // open sea: drifting wave pattern across the whole view
   out += `<rect class="seawaves" x="${minX - pad - 96}" y="${minY - pad}"
@@ -1234,10 +1295,13 @@ function helpHTML() {
     <h4>Winning — first to 10 ★</h4>
     <p>🏠 = 1★ · 🏰 = 2★ · 🛣️ <b>Longest Road</b> (5+) = 2★ · ⚔️ <b>Largest Army</b> (3+ knights) = 2★ · secret VP cards.</p>
 
-    <h4>Board pips</h4>
-    <p>Dots under a number = how often it rolls. <span style="color:#c0392b;font-weight:800">6 and 8</span> are the best spots.</p>
+    <h4>Board numbers</h4>
+    <p><span style="color:#c0392b;font-weight:800">6 and 8</span> roll most often — the best spots to settle.</p>
   </div>
-  <div class="row"><button onclick="closeModal()">Close</button></div>`;
+  <div class="row">
+    <button onclick="toggle2D()">${use3D() ? '🗺️ Classic 2D board' : '🎲 3D board'}</button>
+    <button onclick="closeModal()">Close</button>
+  </div>`;
 }
 
 function winHTML() {
