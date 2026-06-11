@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#173042">
+<title>Catan</title>
+<style>
+  :root {
+    --bg: #173042;
+    --panel: #0f2330;
+    --panel2: #1d3b50;
+    --ink: #eef3f6;
+    --muted: #8fa8b8;
+    --accent: #f3a712;
+    --sea: #2a6f97;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg); color: var(--ink);
+    height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  button {
+    font: inherit; border: 0; border-radius: 10px; padding: 10px 14px;
+    background: var(--panel2); color: var(--ink); font-weight: 600;
+  }
+  button:disabled { opacity: .35; }
+  button.primary { background: var(--accent); color: #2b1d00; }
+  button.danger { background: #b3392f; }
+  .hidden { display: none !important; }
+
+  /* ---------- join / lobby ---------- */
+  .screen {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 16px; padding: 24px; text-align: center;
+  }
+  .screen h1 { font-size: 42px; margin: 0; letter-spacing: 2px; color: var(--accent); }
+  .screen h1 small { display: block; font-size: 14px; color: var(--muted); letter-spacing: 4px; }
+  .screen input {
+    font: inherit; font-size: 18px; padding: 12px 16px; border-radius: 12px;
+    border: 2px solid var(--panel2); background: var(--panel); color: var(--ink);
+    text-align: center; width: 240px; outline: none;
+  }
+  .screen input:focus { border-color: var(--accent); }
+  .lobby-list { display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+  .lobby-row {
+    display: flex; align-items: center; gap: 10px; background: var(--panel);
+    padding: 10px 14px; border-radius: 12px; font-weight: 600;
+  }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+  .hint { color: var(--muted); font-size: 13px; max-width: 280px; }
+
+  /* ---------- game layout ---------- */
+  #game { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  #players {
+    display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; flex-shrink: 0;
+    background: var(--panel);
+  }
+  .pchip {
+    display: flex; flex-direction: column; gap: 2px; padding: 5px 9px;
+    border-radius: 10px; background: var(--panel2); border: 2px solid transparent;
+    font-size: 11px; white-space: nowrap; min-width: 86px;
+  }
+  .pchip.turn { border-color: var(--accent); }
+  .pchip .nm { font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+  .pchip .st { color: var(--muted); display: flex; gap: 7px; }
+  .pchip .badges { color: var(--accent); font-size: 10px; height: 12px; }
+
+  #status {
+    padding: 7px 12px; font-size: 14px; font-weight: 600; text-align: center;
+    background: #0b1b26; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; gap: 10px; min-height: 38px;
+  }
+  #dice { display: flex; gap: 4px; }
+  .die {
+    width: 24px; height: 24px; border-radius: 6px; background: #fff; color: #222;
+    display: flex; align-items: center; justify-content: center; font-weight: 800;
+  }
+
+  #boardWrap { flex: 1; min-height: 0; position: relative; background: radial-gradient(circle at 50% 40%, #2a6f97 0%, #1b4b66 70%, #143a50 100%); }
+  #board { width: 100%; height: 100%; display: block; }
+
+  /* board svg */
+  .hex { stroke: #0e2433; stroke-width: 2.5; }
+  .hex.clickable { cursor: pointer; }
+  .hex.hl { stroke: #ffe16b; stroke-width: 4; }
+  .tok { fill: #f3ead2; stroke: #b8a87e; }
+  .tok-num { font-weight: 800; fill: #3a3225; text-anchor: middle; }
+  .tok-num.hot { fill: #c0392b; }
+  .edge-tap { stroke: transparent; stroke-width: 16; cursor: pointer; }
+  .road { stroke-width: 7; stroke-linecap: round; pointer-events: none; }
+  .edge-hl { stroke: #ffe16b; stroke-width: 9; stroke-linecap: round; stroke-dasharray: 4 6; opacity: .9; pointer-events: none; }
+  .vert-tap { fill: transparent; cursor: pointer; }
+  .vert-hl { fill: #ffe16b; opacity: .85; pointer-events: none; }
+  .bld { stroke: #10222e; stroke-width: 1.5; pointer-events: none; }
+  .port-lbl { font-size: 13px; font-weight: 700; fill: #eef3f6; text-anchor: middle; }
+  .port-line { stroke: #cfe3ee; stroke-width: 2; stroke-dasharray: 3 4; opacity: .7; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .vert-hl, .edge-hl, .hex.hl { animation: pulse 1.1s infinite; }
+
+  #bottom { flex-shrink: 0; background: var(--panel); padding: 6px 8px 10px; display: flex; flex-direction: column; gap: 7px; }
+  #hand { display: flex; gap: 6px; justify-content: center; }
+  .rcard {
+    flex: 1; max-width: 64px; border-radius: 10px; padding: 5px 0 3px; text-align: center;
+    font-size: 17px; line-height: 1.1; color: #fff; font-weight: 800;
+    box-shadow: inset 0 -3px rgba(0,0,0,.25);
+  }
+  .rcard small { display: block; font-size: 15px; }
+  #actions { display: flex; gap: 6px; }
+  #actions button { flex: 1; padding: 11px 4px; font-size: 13px; }
+  #actions button.active { outline: 2px solid var(--accent); }
+
+  /* ---------- modals ---------- */
+  #overlay {
+    position: fixed; inset: 0; background: rgba(5, 15, 22, .72);
+    display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+  }
+  @media (min-width: 600px) { #overlay { align-items: center; } }
+  .modal {
+    background: var(--panel); border-radius: 18px 18px 0 0; padding: 18px 16px 26px;
+    width: 100%; max-width: 480px; max-height: 82dvh; overflow-y: auto;
+  }
+  @media (min-width: 600px) { .modal { border-radius: 18px; } }
+  .modal h3 { margin: 0 0 12px; }
+  .modal .row { display: flex; gap: 8px; margin-top: 12px; }
+  .modal .row button { flex: 1; }
+  .stepper { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 8px; }
+  .stepper .lab { flex: 1; font-weight: 600; }
+  .stepper button { width: 40px; height: 36px; padding: 0; font-size: 18px; }
+  .stepper .val { width: 28px; text-align: center; font-weight: 800; }
+  .pick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .pick-grid button { padding: 12px 0; font-size: 20px; }
+  .devrow { display: flex; align-items: center; justify-content: space-between; background: var(--panel2); border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
+  .seg { display: flex; background: var(--panel2); border-radius: 10px; padding: 3px; margin-bottom: 10px; }
+  .seg button { flex: 1; background: transparent; padding: 8px; }
+  .seg button.on { background: var(--accent); color: #2b1d00; }
+  .tradeside h4 { margin: 10px 0 2px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+
+  #toast {
+    position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+    background: #b3392f; color: #fff; padding: 9px 16px; border-radius: 10px;
+    font-weight: 600; font-size: 14px; z-index: 99; max-width: 90vw; text-align: center;
+    transition: opacity .3s; opacity: 0; pointer-events: none;
+  }
+  #log {
+    position: absolute; left: 6px; bottom: 6px; right: 6px; max-height: 72px;
+    overflow: hidden; font-size: 11px; color: #d7e6ef; pointer-events: none;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    text-shadow: 0 1px 2px rgba(0,0,0,.7);
+  }
+  #winBox { text-align: center; }
+  #winBox .trophy { font-size: 64px; }
+</style>
+</head>
+<body>
+
+<div id="joinScreen" class="screen">
+  <h1>CATAN<small>SETTLERS · LAN</small></h1>
+  <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
+  <button class="primary" style="width:240px" onclick="join()">Join game</button>
+  <div class="hint">Everyone on the same wifi opens this address to play. 2–4 players.</div>
+</div>
+
+<div id="lobbyScreen" class="screen hidden">
+  <h1>LOBBY</h1>
+  <div class="lobby-list" id="lobbyList"></div>
+  <button class="primary hidden" id="startBtn" style="width:240px" onclick="api('start')">Start game</button>
+  <div class="hint" id="lobbyHint"></div>
+</div>
+
+<div id="game" class="hidden">
+  <div id="players"></div>
+  <div id="status"></div>
+  <div id="boardWrap">
+    <svg id="board"></svg>
+    <div id="log"></div>
+  </div>
+  <div id="bottom">
+    <div id="hand"></div>
+    <div id="actions"></div>
+  </div>
+</div>
+
+<div id="overlay" class="hidden"><div class="modal" id="modalBody"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+const RES = ['wood','brick','sheep','wheat','ore'];
+const RES_EMOJI = { wood:'🌲', brick:'🧱', sheep:'🐑', wheat:'🌾', ore:'⛰️' };
+const RES_COLOR = { wood:'#1f7a36', brick:'#c4622d', sheep:'#7cb342', wheat:'#d9a514', ore:'#6d7178' };
+const HEX_FILL  = { wood:'#2d8a44', brick:'#cf6a32', sheep:'#a7d05a', wheat:'#e8c640', ore:'#8b8d93', desert:'#dbc79a' };
+const DEV_NAMES = { knight:'Knight', victory:'Victory Point', roadBuilding:'Road Building', yearOfPlenty:'Year of Plenty', monopoly:'Monopoly' };
+const COSTS_TXT = { road:'🌲🧱', settlement:'🌲🧱🐑🌾', city:'🌾🌾⛰️⛰️⛰️', dev:'🐑🌾⛰️' };
+const SC = 60; // board scale
+
+let token = localStorage.getItem('catan_token') || '';
+let S = null;          // latest server state
+let mode = null;       // road | settlement | city | robber
+let modal = null;      // current modal name
+let modalData = {};    // scratch state for modals
+let es = null;
+
+// ---------- networking ----------
+
+async function join() {
+  const name = document.getElementById('nameInput').value.trim();
+  if (!name) return toast('Enter a name');
+  const r = await fetch('/api/join', { method:'POST', body: JSON.stringify({ name, token }) });
+  const d = await r.json();
+  if (!r.ok) return toast(d.error);
+  token = d.token;
+  localStorage.setItem('catan_token', token);
+  connect();
+}
+
+function connect() {
+  if (es) es.close();
+  es = new EventSource('/api/events?token=' + encodeURIComponent(token));
+  es.onmessage = (ev) => { S = JSON.parse(ev.data); render(); };
+}
+
+async function api(type, extra = {}) {
+  const r = await fetch('/api/action', {
+    method: 'POST',
+    body: JSON.stringify(Object.assign({ token, type }, extra)),
+  });
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({ error: 'request failed' }));
+    toast(d.error);
+    return false;
+  }
+  return true;
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.opacity = 1;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.style.opacity = 0, 2600);
+}
+
+// ---------- helpers ----------
+
+const me = () => S && S.you ? S.you.id : -1;
+const myTurn = () => S && S.phase === 'main' && S.turn === me();
+const mySetup = () => S && S.phase === 'setup' && S.setupPlayer === me();
+const pl = (id) => S.players.find(p => p.id === id);
+const el = (id) => document.getElementById(id);
+
+function show(id) {
+  ['joinScreen','lobbyScreen','game'].forEach(s => el(s).classList.toggle('hidden', s !== id));
+}
+
+// ---------- master render ----------
+
+function render() {
+  if (!S) return;
+  if (!S.you) { show('joinScreen'); return; }
+  if (S.phase === 'lobby') { renderLobby(); return; }
+  show('game');
+  syncMode();
+  renderPlayers();
+  renderStatus();
+  renderBoard();
+  renderHand();
+  renderActions();
+  renderLog();
+  autoModal();
+}
+
+function renderLobby() {
+  show('lobbyScreen');
+  el('lobbyList').innerHTML = S.players.map(p =>
+    `<div class="lobby-row"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === 0 ? ' 👑' : ''}</div>`
+  ).join('');
+  el('startBtn').classList.toggle('hidden', me() !== 0);
+  el('startBtn').disabled = S.players.length < 2;
+  el('lobbyHint').textContent = me() === 0
+    ? (S.players.length < 2 ? 'Waiting for at least 2 players…' : 'Ready when you are!')
+    : 'Waiting for the host to start…';
+}
+
+// keep placement mode consistent with what the server expects
+function syncMode() {
+  if (S.phase === 'setup') {
+    mode = mySetup() ? (S.setupStep === 'settlement' ? 'settlement' : 'road') : null;
+    return;
+  }
+  if (S.robberPending && S.turn === me()) { mode = 'robber'; return; }
+  if (mode === 'robber') mode = null;
+  if (S.freeRoads > 0 && myTurn()) { mode = 'road'; return; }
+  if (mode === 'road' && (!S.legalRoads || !S.legalRoads.length)) mode = null;
+  if (mode === 'settlement' && (!S.legalSettlements || !S.legalSettlements.length)) mode = null;
+  if (mode === 'city' && (!S.legalCities || !S.legalCities.length)) mode = null;
+  if (!myTurn()) mode = null;
+}
+
+function renderPlayers() {
+  el('players').innerHTML = S.players.map(p => {
+    const turn = (S.phase === 'main' && S.turn === p.id) || (S.phase === 'setup' && S.setupPlayer === p.id);
+    const badges = [p.longestRoad ? '🛣️LR' : '', p.largestArmy ? '⚔️LA' : ''].filter(Boolean).join(' ');
+    const pts = p.id === me() ? S.you.points : p.points;
+    return `<div class="pchip ${turn ? 'turn' : ''}">
+      <span class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === me() ? ' (you)' : ''}</span>
+      <span class="st"><b style="color:var(--accent)">★${pts}</b> 🎴${p.cards} 📜${p.devCards} ⚔️${p.knights}</span>
+      <span class="badges">${badges}</span>
+    </div>`;
+  }).join('');
+}
+
+function statusText() {
+  if (S.phase === 'ended') return 'Game over';
+  if (S.phase === 'setup') {
+    const n = pl(S.setupPlayer).name;
+    const what = S.setupStep === 'settlement' ? 'settlement' : 'road';
+    return mySetup() ? `Tap a spot for your ${what}` : `${esc(n)} is placing a ${what}…`;
+  }
+  if (S.mustDiscard > 0) return 'Discard cards';
+  if (S.waitDiscard && S.waitDiscard.length)
+    return 'Waiting for ' + S.waitDiscard.map(id => esc(pl(id).name)).join(', ') + ' to discard…';
+  if (S.robberPending) return S.turn === me() ? 'Tap a hex to move the robber' : `${esc(pl(S.turn).name)} is moving the robber…`;
+  if (S.stealPending) return S.turn === me() ? 'Choose who to rob' : `${esc(pl(S.turn).name)} is robbing…`;
+  if (S.freeRoads > 0 && myTurn()) return `Place ${S.freeRoads} free road${S.freeRoads > 1 ? 's' : ''}`;
+  if (myTurn()) return S.rolled ? 'Build, trade, or end your turn' : 'Your turn — roll the dice!';
+  return `${esc(pl(S.turn).name)}'s turn…`;
+}
+
+function renderStatus() {
+  const dice = S.diceA ? `<span id="dice"><span class="die">${S.diceA}</span><span class="die">${S.diceB}</span></span>` : '';
+  el('status').innerHTML = `${dice}<span>${statusText()}</span>`;
+}
+
+// ---------- board ----------
+
+function hexCorners(h) {
+  const pts = [];
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI / 180 * (60 * k - 30);
+    pts.push([(h.x + Math.cos(a)) * SC, (h.y + Math.sin(a)) * SC]);
+  }
+  return pts;
+}
+
+function renderBoard() {
+  const B = S.board;
+  if (!B) return;
+  const svg = el('board');
+  let minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9;
+  for (const v of B.verts) {
+    minX = Math.min(minX, v.x * SC); maxX = Math.max(maxX, v.x * SC);
+    minY = Math.min(minY, v.y * SC); maxY = Math.max(maxY, v.y * SC);
+  }
+  const pad = 52;
+  svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`);
+
+  let out = '';
+
+  // hexes
+  const robberMode = mode === 'robber';
+  for (const h of B.hexes) {
+    const pts = hexCorners(h).map(p => p.join(',')).join(' ');
+    const click = robberMode && h.id !== B.robber;
+    out += `<polygon class="hex ${click ? 'clickable hl' : ''}" points="${pts}" fill="${HEX_FILL[h.terrain]}"
+      ${click ? `onclick="tapHex(${h.id})"` : ''}/>`;
+    if (h.number) {
+      const hot = h.number === 6 || h.number === 8;
+      out += `<circle class="tok" cx="${h.x * SC}" cy="${h.y * SC}" r="15"/>
+        <text class="tok-num ${hot ? 'hot' : ''}" x="${h.x * SC}" y="${h.y * SC + 5.5}" font-size="${hot ? 17 : 14}">${h.number}</text>`;
+    }
+    if (h.id === B.robber) {
+      out += `<text x="${h.x * SC}" y="${h.y * SC - (h.number ? 18 : -7)}" font-size="22" text-anchor="middle" style="pointer-events:none">🦹</text>`;
+    }
+  }
+
+  // ports
+  for (const p of B.ports) {
+    const v1 = B.verts[p.v1], v2 = B.verts[p.v2];
+    const mx = (v1.x + v2.x) / 2 * SC, my = (v1.y + v2.y) / 2 * SC;
+    const len = Math.hypot(mx, my) || 1;
+    const ox = mx + mx / len * 30, oy = my + my / len * 30;
+    out += `<line class="port-line" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${ox}" y2="${oy}"/>
+      <line class="port-line" x1="${v2.x * SC}" y1="${v2.y * SC}" x2="${ox}" y2="${oy}"/>
+      <text class="port-lbl" x="${ox}" y="${oy - 2}">${p.ratio}:1</text>
+      <text class="port-lbl" x="${ox}" y="${oy + 14}">${p.resource ? RES_EMOJI[p.resource] : '❓'}</text>`;
+  }
+
+  // roads + edge taps
+  const legalE = new Set(mode === 'road' ? (S.legalRoads || []) : []);
+  for (const e of B.edges) {
+    const v1 = B.verts[e.v1], v2 = B.verts[e.v2];
+    const owner = B.roads ? B.roads[e.id] : undefined;
+    if (owner !== undefined) {
+      out += `<line class="road" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}"
+        stroke="${pl(owner).color}"/>`;
+    } else if (legalE.has(e.id)) {
+      out += `<line class="edge-hl" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}"/>
+        <line class="edge-tap" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}" onclick="tapEdge(${e.id})"/>`;
+    }
+  }
+
+  // buildings + vertex taps
+  const legalV = new Set(
+    mode === 'settlement' ? (S.legalSettlements || []) :
+    mode === 'city' ? (S.legalCities || []) : []);
+  for (const v of B.verts) {
+    const b = B.buildings ? B.buildings[v.id] : undefined;
+    const x = v.x * SC, y = v.y * SC;
+    if (b) {
+      const c = pl(b.player).color;
+      if (b.type === 'settlement') {
+        out += `<path class="bld" fill="${c}" d="M ${x-8} ${y+7} L ${x-8} ${y-3} L ${x} ${y-11} L ${x+8} ${y-3} L ${x+8} ${y+7} Z"/>`;
+      } else {
+        out += `<path class="bld" fill="${c}" d="M ${x-11} ${y+8} L ${x-11} ${y-4} L ${x-5} ${y-12} L ${x+1} ${y-4} L ${x+11} ${y-4} L ${x+11} ${y+8} Z"/>`;
+      }
+    }
+    if (legalV.has(v.id)) {
+      out += `<circle class="vert-hl" cx="${x}" cy="${y}" r="9"/>
+        <circle class="vert-tap" cx="${x}" cy="${y}" r="17" onclick="tapVert(${v.id})"/>`;
+    }
+  }
+
+  svg.innerHTML = out;
+}
+
+function tapHex(id) {
+  if (mode === 'robber') api('moveRobber', { hex: id });
+}
+function tapEdge(id) {
+  if (S.phase === 'setup') api('placeSetupRoad', { edge: id });
+  else api('buildRoad', { edge: id }).then(ok => { if (ok && S.freeRoads <= 1) mode = null; });
+}
+function tapVert(id) {
+  if (S.phase === 'setup') { api('placeSetupSettlement', { vertex: id }); return; }
+  if (mode === 'settlement') api('buildSettlement', { vertex: id }).then(() => mode = null);
+  else if (mode === 'city') api('buildCity', { vertex: id }).then(() => mode = null);
+}
+
+// ---------- hand & actions ----------
+
+function renderHand() {
+  el('hand').innerHTML = RES.map(r =>
+    `<div class="rcard" style="background:${RES_COLOR[r]}">${RES_EMOJI[r]}<small>${S.you.resources[r] || 0}</small></div>`
+  ).join('');
+}
+
+function renderActions() {
+  const a = el('actions');
+  if (S.phase === 'ended') {
+    a.innerHTML = `<button class="primary" onclick="api('newGame')">Play again</button>`;
+    return;
+  }
+  if (S.phase === 'setup') { a.innerHTML = ''; return; }
+  if (!myTurn()) {
+    a.innerHTML = `<button onclick="openModal('dev')">📜 Cards</button>
+      ${S.trade ? `<button class="primary" onclick="openModal('tradeOffer')">🔁 View trade</button>` : ''}`;
+    return;
+  }
+  if (!S.rolled) {
+    const knight = S.you.devCards.some(c => c.type === 'knight' && c.playable);
+    a.innerHTML = `<button class="primary" style="flex:2" onclick="api('roll')" ${S.robberPending || S.stealPending ? 'disabled' : ''}>🎲 Roll dice</button>
+      ${knight ? `<button onclick="playCard('knight')">⚔️ Knight</button>` : ''}`;
+    return;
+  }
+  const r = S.you.resources;
+  const canRoad = (S.freeRoads > 0 || (r.wood >= 1 && r.brick >= 1)) && (S.legalRoads || []).length;
+  const canSett = r.wood >= 1 && r.brick >= 1 && r.sheep >= 1 && r.wheat >= 1 && (S.legalSettlements || []).length;
+  const canCity = r.wheat >= 2 && r.ore >= 3 && (S.legalCities || []).length;
+  a.innerHTML = `
+    <button class="${mode === 'road' ? 'active' : ''}" ${canRoad ? '' : 'disabled'} onclick="setMode('road')">🛣️<br>Road</button>
+    <button class="${mode === 'settlement' ? 'active' : ''}" ${canSett ? '' : 'disabled'} onclick="setMode('settlement')">🏠<br>House</button>
+    <button class="${mode === 'city' ? 'active' : ''}" ${canCity ? '' : 'disabled'} onclick="setMode('city')">🏰<br>City</button>
+    <button onclick="openModal('dev')">📜<br>Cards</button>
+    <button onclick="openModal(S.trade ? 'tradeOffer' : 'trade')">🔁<br>Trade</button>
+    <button class="primary" onclick="api('endTurn')">✅<br>End</button>`;
+}
+
+function setMode(m) {
+  mode = (mode === m) ? null : m;
+  renderActions();
+  renderBoard();
+}
+
+function renderLog() {
+  el('log').innerHTML = (S.log || []).slice(-4).map(l => `<div>${esc(l.text)}</div>`).join('');
+}
+
+// ---------- modals ----------
+
+function openModal(name) {
+  modal = name;
+  modalData = {};
+  if (name === 'discard') modalData.amounts = Object.fromEntries(RES.map(r => [r, 0]));
+  if (name === 'trade') {
+    modalData.tab = 'bank';
+    modalData.give = Object.fromEntries(RES.map(r => [r, 0]));
+    modalData.get = Object.fromEntries(RES.map(r => [r, 0]));
+    modalData.bankGive = null; modalData.bankGet = null;
+  }
+  drawModal();
+}
+function closeModal() {
+  modal = null;
+  el('overlay').classList.add('hidden');
+  render();
+}
+
+// open forced modals automatically
+function autoModal() {
+  if (S.phase === 'ended' && modal !== 'win') { openModal('win'); return; }
+  if (S.mustDiscard > 0) {
+    if (modal !== 'discard') openModal('discard');
+    return;
+  } else if (modal === 'discard') { closeModal(); return; }
+  if (S.stealPending && S.turn === me()) {
+    if (modal !== 'steal') openModal('steal');
+    return;
+  } else if (modal === 'steal') { closeModal(); return; }
+  if (S.trade && S.trade.from !== me() && modal !== 'tradeOffer' && modal !== 'dev') openModal('tradeOffer');
+  if (!S.trade && modal === 'tradeOffer') closeModal();
+  if (modal) drawModal();
+}
+
+function drawModal() {
+  const body = el('modalBody');
+  el('overlay').classList.remove('hidden');
+  if (modal === 'discard') body.innerHTML = discardHTML();
+  else if (modal === 'steal') body.innerHTML = stealHTML();
+  else if (modal === 'dev') body.innerHTML = devHTML();
+  else if (modal === 'trade') body.innerHTML = tradeHTML();
+  else if (modal === 'tradeOffer') body.innerHTML = tradeOfferHTML();
+  else if (modal === 'pick2') body.innerHTML = pickHTML(2, 'Year of Plenty — take 2 resources');
+  else if (modal === 'pick1') body.innerHTML = pickHTML(1, 'Monopoly — take everyone\'s…');
+  else if (modal === 'win') body.innerHTML = winHTML();
+}
+
+function stepper(r, obj, max) {
+  const v = modalData[obj][r];
+  return `<div class="stepper">
+    <span class="lab">${RES_EMOJI[r]} ${r}</span>
+    <button onclick="bump('${obj}','${r}',-1)">−</button>
+    <span class="val">${v}</span>
+    <button onclick="bump('${obj}','${r}',1,${max})">+</button>
+  </div>`;
+}
+function bump(obj, r, d, max) {
+  const v = modalData[obj][r] + d;
+  const cap = (obj === 'give' || obj === 'amounts') ? (S.you.resources[r] || 0) : 19;
+  modalData[obj][r] = Math.max(0, Math.min(v, cap));
+  drawModal();
+}
+
+function discardHTML() {
+  const total = RES.reduce((t, r) => t + modalData.amounts[r], 0);
+  return `<h3>Rolled 7 — discard ${S.mustDiscard} cards</h3>
+    ${RES.filter(r => S.you.resources[r] > 0).map(r => stepper(r, 'amounts')).join('')}
+    <div class="row">
+      <button class="primary" ${total === S.mustDiscard ? '' : 'disabled'}
+        onclick="api('discard',{amounts:modalData.amounts}).then(ok=>ok&&closeModal())">
+        Discard ${total}/${S.mustDiscard}</button>
+    </div>`;
+}
+
+function stealHTML() {
+  return `<h3>Steal a card from…</h3>
+    ${(S.stealFrom || []).map(id => `<div class="row">
+      <button onclick="api('steal',{player:${id}}).then(ok=>ok&&closeModal())">
+        <span class="dot" style="display:inline-block;background:${pl(id).color}"></span>
+        ${esc(pl(id).name)} (${pl(id).cards} cards)</button></div>`).join('')}`;
+}
+
+function devHTML() {
+  const cards = S.you.devCards;
+  const counts = {};
+  cards.forEach(c => {
+    counts[c.type] = counts[c.type] || { n: 0, playable: false };
+    counts[c.type].n++;
+    if (c.playable) counts[c.type].playable = true;
+  });
+  const canBuy = myTurn() && S.rolled && S.you.resources.sheep >= 1 && S.you.resources.wheat >= 1 && S.you.resources.ore >= 1 && S.devDeckLeft > 0;
+  return `<h3>Development cards</h3>
+    ${Object.keys(counts).length ? Object.entries(counts).map(([t, c]) => `
+      <div class="devrow"><span><b>${DEV_NAMES[t]}</b> ×${c.n}</span>
+        ${t === 'victory' ? '<span>+1 ★</span>' :
+          `<button class="primary" ${c.playable ? '' : 'disabled'} onclick="playCard('${t}')">Play</button>`}
+      </div>`).join('') : '<p class="hint">No cards yet.</p>'}
+    <div class="row">
+      <button ${canBuy ? '' : 'disabled'} onclick="api('buyDev')">Buy card ${COSTS_TXT.dev} (${S.devDeckLeft} left)</button>
+      <button onclick="closeModal()">Close</button>
+    </div>
+    <p class="hint">Costs — Road ${COSTS_TXT.road} · House ${COSTS_TXT.settlement} · City ${COSTS_TXT.city}</p>`;
+}
+
+function playCard(t) {
+  if (t === 'yearOfPlenty') { openModal('pick2'); return; }
+  if (t === 'monopoly') { openModal('pick1'); return; }
+  api('playDev', { card: t }).then(ok => ok && modal && closeModal());
+}
+
+function pickHTML(n, title) {
+  modalData.picks = modalData.picks || [];
+  const p = modalData.picks;
+  return `<h3>${title}</h3>
+    <div class="pick-grid">${RES.map(r =>
+      `<button onclick="pickRes('${r}',${n})">${RES_EMOJI[r]}</button>`).join('')}</div>
+    <p style="text-align:center;font-size:22px;min-height:30px">${p.map(r => RES_EMOJI[r]).join(' ')}</p>
+    <div class="row">
+      <button class="primary" ${p.length === n ? '' : 'disabled'} onclick="confirmPick(${n})">Confirm</button>
+      <button onclick="closeModal()">Cancel</button>
+    </div>`;
+}
+function pickRes(r, n) {
+  modalData.picks = modalData.picks || [];
+  if (modalData.picks.length >= n) modalData.picks = [];
+  modalData.picks.push(r);
+  drawModal();
+}
+function confirmPick(n) {
+  const p = modalData.picks;
+  const req = n === 2
+    ? api('playDev', { card: 'yearOfPlenty', r1: p[0], r2: p[1] })
+    : api('playDev', { card: 'monopoly', resource: p[0] });
+  req.then(ok => ok && closeModal());
+}
+
+function tradeHTML() {
+  const tab = modalData.tab;
+  let inner = '';
+  if (tab === 'bank') {
+    const rates = S.bankRates || {};
+    inner = `<div class="tradeside"><h4>You give</h4>
+      <div class="pick-grid">${RES.map(r => `
+        <button class="${modalData.bankGive === r ? 'primary' : ''}"
+          ${(S.you.resources[r] || 0) >= (rates[r] || 4) ? '' : 'disabled'}
+          onclick="modalData.bankGive='${r}';drawModal()">${RES_EMOJI[r]}<br><small>${rates[r] || 4}:1</small></button>`).join('')}
+      </div>
+      <h4>You receive</h4>
+      <div class="pick-grid">${RES.map(r => `
+        <button class="${modalData.bankGet === r ? 'primary' : ''}" ${r === modalData.bankGive ? 'disabled' : ''}
+          onclick="modalData.bankGet='${r}';drawModal()">${RES_EMOJI[r]}</button>`).join('')}
+      </div>
+      <div class="row"><button class="primary" ${modalData.bankGive && modalData.bankGet ? '' : 'disabled'}
+        onclick="doBankTrade()">Trade with bank</button></div>`;
+  } else {
+    const giveN = RES.reduce((t, r) => t + modalData.give[r], 0);
+    const getN = RES.reduce((t, r) => t + modalData.get[r], 0);
+    inner = `<div class="tradeside"><h4>You give</h4>${RES.map(r => stepper(r, 'give')).join('')}
+      <h4>You want</h4>${RES.map(r => stepper(r, 'get')).join('')}
+      <div class="row"><button class="primary" ${giveN && getN ? '' : 'disabled'}
+        onclick="api('offerTrade',{give:clean(modalData.give),get:clean(modalData.get)}).then(ok=>{if(ok){modal='tradeOffer';drawModal()}})">
+        Offer to players</button></div>`;
+  }
+  return `<h3>Trade</h3>
+    <div class="seg">
+      <button class="${tab === 'bank' ? 'on' : ''}" onclick="modalData.tab='bank';drawModal()">Bank / Port</button>
+      <button class="${tab === 'players' ? 'on' : ''}" onclick="modalData.tab='players';drawModal()">Players</button>
+    </div>${inner}
+    <div class="row"><button onclick="closeModal()">Close</button></div>`;
+}
+
+function clean(m) {
+  const o = {};
+  for (const r of RES) if (m[r] > 0) o[r] = m[r];
+  return o;
+}
+function doBankTrade() {
+  const rate = (S.bankRates || {})[modalData.bankGive] || 4;
+  api('bankTrade', { give: { [modalData.bankGive]: rate }, get: { [modalData.bankGet]: 1 } })
+    .then(ok => ok && closeModal());
+}
+
+function tradeOfferHTML() {
+  const t = S.trade;
+  if (!t) return '<h3>Trade ended</h3><div class="row"><button onclick="closeModal()">Close</button></div>';
+  const fmt = m => Object.entries(m).map(([r, n]) => `${n}× ${RES_EMOJI[r]}`).join('  ') || '—';
+  const mine = t.from === me();
+  let actions = '';
+  if (mine) {
+    actions = (t.accepted || []).length
+      ? t.accepted.map(id => `<div class="row"><button class="primary" onclick="api('confirmTrade',{player:${id}}).then(ok=>ok&&closeModal())">Trade with ${esc(pl(id).name)}</button></div>`).join('')
+      : '<p class="hint">Waiting for responses…</p>';
+    actions += `<div class="row"><button class="danger" onclick="api('cancelTrade').then(ok=>ok&&closeModal())">Cancel offer</button></div>`;
+  } else {
+    const responded = (t.accepted || []).includes(me()) || (t.rejected || []).includes(me());
+    actions = responded ? '<p class="hint">Response sent — waiting…</p>' : `<div class="row">
+      <button class="primary" onclick="api('respondTrade',{resource:'accept'})">Accept</button>
+      <button class="danger" onclick="api('respondTrade',{resource:'reject'})">Decline</button></div>`;
+    actions += `<div class="row"><button onclick="closeModal()">Hide</button></div>`;
+  }
+  return `<h3>${esc(pl(t.from).name)} offers</h3>
+    <div class="devrow"><span>Gives</span><b>${fmt(t.give)}</b></div>
+    <div class="devrow"><span>Wants</span><b>${fmt(t.get)}</b></div>
+    ${actions}`;
+}
+
+function winHTML() {
+  const w = pl(S.winner);
+  return `<div id="winBox">
+    <div class="trophy">🏆</div>
+    <h3 style="font-size:26px">${esc(w.name)} wins!</h3>
+    ${S.players.map(p => `<div class="devrow"><span><span class="dot" style="display:inline-block;background:${p.color}"></span> ${esc(p.name)}</span><b>★ ${p.id === me() ? S.you.points : p.points}</b></div>`).join('')}
+    <div class="row"><button class="primary" onclick="api('newGame').then(ok=>ok&&closeModal())">Play again</button></div>
+  </div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- boot ----------
+
+el('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
+if (token) {
+  // try to resume an existing seat
+  fetch('/api/join', { method: 'POST', body: JSON.stringify({ token, resume: true }) })
+    .then(r => r.json().then(d => ({ ok: r.ok, d })))
+    .then(({ ok, d }) => {
+      if (ok && d.token === token) connect();
+      else { localStorage.removeItem('catan_token'); token = ''; }
+    })
+    .catch(() => {});
+}
+</script>
+</body>
+</html>
