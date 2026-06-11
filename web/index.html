@@ -3,153 +3,227 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#173042">
+<meta name="theme-color" content="#0b2536">
 <title>Catan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #173042;
-    --panel: #0f2330;
-    --panel2: #1d3b50;
-    --ink: #eef3f6;
-    --muted: #8fa8b8;
-    --accent: #f3a712;
-    --sea: #2a6f97;
+    --sea-1: #11445f;
+    --sea-2: #0b2536;
+    --wood-1: #3d2b16;
+    --wood-2: #271a0c;
+    --panel: #14293a;
+    --panel2: #1f3d54;
+    --ink: #f2ede0;
+    --muted: #9eb4c2;
+    --gold: #e9b44c;
+    --gold-dark: #b3812a;
+    --parchment: #f3ead2;
+    --red: #b3392f;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; height: 100%; }
   body {
-    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: var(--bg); color: var(--ink);
+    font-family: 'Alegreya Sans', -apple-system, "Segoe UI", sans-serif;
+    background: var(--sea-2); color: var(--ink);
     height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
     user-select: none; -webkit-user-select: none; touch-action: manipulation;
   }
   button {
-    font: inherit; border: 0; border-radius: 10px; padding: 10px 14px;
-    background: var(--panel2); color: var(--ink); font-weight: 600;
+    font: inherit; font-weight: 700; border: 0; border-radius: 12px; padding: 10px 14px;
+    background: var(--panel2); color: var(--ink);
+    box-shadow: 0 2px 0 rgba(0,0,0,.35);
   }
+  button:active { transform: translateY(1px); box-shadow: 0 1px 0 rgba(0,0,0,.35); }
   button:disabled { opacity: .35; }
-  button.primary { background: var(--accent); color: #2b1d00; }
-  button.danger { background: #b3392f; }
+  button.primary {
+    background: linear-gradient(180deg, #f4c764, var(--gold) 55%, var(--gold-dark));
+    color: #34230a; text-shadow: 0 1px 0 rgba(255,255,255,.35);
+  }
+  button.danger { background: linear-gradient(180deg, #cc4a3f, var(--red)); }
   .hidden { display: none !important; }
 
   /* ---------- join / lobby ---------- */
   .screen {
     flex: 1; display: flex; flex-direction: column; align-items: center;
     justify-content: center; gap: 16px; padding: 24px; text-align: center;
+    background:
+      radial-gradient(120% 70% at 50% 0%, rgba(233,180,76,.10), transparent 60%),
+      radial-gradient(circle at 50% 110%, #16567a 0%, var(--sea-1) 45%, var(--sea-2) 100%);
   }
-  .screen h1 { font-size: 42px; margin: 0; letter-spacing: 2px; color: var(--accent); }
-  .screen h1 small { display: block; font-size: 14px; color: var(--muted); letter-spacing: 4px; }
+  .screen h1 {
+    font-family: 'Cinzel', serif; font-size: 46px; margin: 0; letter-spacing: 4px;
+    color: var(--gold); text-shadow: 0 3px 0 rgba(0,0,0,.45), 0 0 32px rgba(233,180,76,.3);
+  }
+  .screen h1 small { display: block; font-size: 13px; color: var(--muted); letter-spacing: 7px; font-family: 'Alegreya Sans', sans-serif; }
   .screen input {
     font: inherit; font-size: 18px; padding: 12px 16px; border-radius: 12px;
     border: 2px solid var(--panel2); background: var(--panel); color: var(--ink);
-    text-align: center; width: 240px; outline: none;
+    text-align: center; width: 250px; outline: none;
   }
-  .screen input:focus { border-color: var(--accent); }
-  .lobby-list { display: flex; flex-direction: column; gap: 8px; min-width: 240px; }
+  .screen input:focus { border-color: var(--gold); }
+  .lobby-list { display: flex; flex-direction: column; gap: 8px; min-width: 250px; }
   .lobby-row {
     display: flex; align-items: center; gap: 10px; background: var(--panel);
-    padding: 10px 14px; border-radius: 12px; font-weight: 600;
+    padding: 11px 14px; border-radius: 12px; font-weight: 700;
+    border: 1px solid rgba(233,180,76,.15);
   }
-  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
-  .hint { color: var(--muted); font-size: 13px; max-width: 280px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; box-shadow: inset 0 -2px rgba(0,0,0,.3); }
+  .hint { color: var(--muted); font-size: 13px; max-width: 290px; line-height: 1.45; }
 
   /* ---------- game layout ---------- */
   #game { flex: 1; display: flex; flex-direction: column; min-height: 0; }
   #players {
     display: flex; gap: 6px; padding: 6px 8px; overflow-x: auto; flex-shrink: 0;
-    background: var(--panel);
+    background: linear-gradient(180deg, #10212f, var(--panel));
+    border-bottom: 1px solid rgba(233,180,76,.18);
   }
   .pchip {
     display: flex; flex-direction: column; gap: 2px; padding: 5px 9px;
     border-radius: 10px; background: var(--panel2); border: 2px solid transparent;
-    font-size: 11px; white-space: nowrap; min-width: 86px;
+    font-size: 11px; white-space: nowrap; min-width: 88px;
   }
-  .pchip.turn { border-color: var(--accent); }
-  .pchip .nm { font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 5px; }
+  .pchip.turn { border-color: var(--gold); box-shadow: 0 0 10px rgba(233,180,76,.35); }
+  .pchip .nm { font-weight: 800; font-size: 12px; display: flex; align-items: center; gap: 5px; }
   .pchip .st { color: var(--muted); display: flex; gap: 7px; }
-  .pchip .badges { color: var(--accent); font-size: 10px; height: 12px; }
+  .pchip .badges { color: var(--gold); font-size: 10px; height: 12px; font-weight: 800; }
 
   #status {
-    padding: 7px 12px; font-size: 14px; font-weight: 600; text-align: center;
-    background: #0b1b26; flex-shrink: 0; display: flex; align-items: center;
-    justify-content: center; gap: 10px; min-height: 38px;
+    padding: 6px 44px 6px 12px; font-size: 14px; font-weight: 700; text-align: center;
+    background: #081720; flex-shrink: 0; display: flex; align-items: center;
+    justify-content: center; gap: 10px; min-height: 40px; position: relative;
   }
-  #dice { display: flex; gap: 4px; }
-  .die {
-    width: 24px; height: 24px; border-radius: 6px; background: #fff; color: #222;
-    display: flex; align-items: center; justify-content: center; font-weight: 800;
+  #helpBtn {
+    position: absolute; right: 7px; top: 50%; transform: translateY(-50%);
+    width: 28px; height: 28px; padding: 0; border-radius: 50%;
+    background: var(--panel2); color: var(--gold); font-weight: 800; font-size: 15px;
   }
+  #dice { display: flex; gap: 5px; }
+  #dice svg { filter: drop-shadow(0 2px 2px rgba(0,0,0,.5)); }
+  @keyframes diceroll {
+    0%   { transform: rotate(0) scale(.4); opacity: 0; }
+    60%  { transform: rotate(380deg) scale(1.15); opacity: 1; }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  #dice.rolling svg { animation: diceroll .55s ease-out; }
 
-  #boardWrap { flex: 1; min-height: 0; position: relative; background: radial-gradient(circle at 50% 40%, #2a6f97 0%, #1b4b66 70%, #143a50 100%); }
+  #boardWrap {
+    flex: 1; min-height: 0; position: relative;
+    background:
+      repeating-linear-gradient(115deg, rgba(255,255,255,.022) 0 2px, transparent 2px 11px),
+      radial-gradient(circle at 50% 38%, #1d6286 0%, var(--sea-1) 52%, var(--sea-2) 100%);
+  }
   #board { width: 100%; height: 100%; display: block; }
 
   /* board svg */
-  .hex { stroke: #0e2433; stroke-width: 2.5; }
+  .hex { stroke: rgba(8,23,32,.85); stroke-width: 2.5; }
   .hex.clickable { cursor: pointer; }
-  .hex.hl { stroke: #ffe16b; stroke-width: 4; }
-  .tok { fill: #f3ead2; stroke: #b8a87e; }
-  .tok-num { font-weight: 800; fill: #3a3225; text-anchor: middle; }
+  .hex.hl { stroke: #ffe16b; stroke-width: 4.5; }
+  .hex-rim { fill: none; stroke: rgba(255,255,255,.16); stroke-width: 1.4; pointer-events: none; }
+  .tok { fill: var(--parchment); stroke: #b8a87e; stroke-width: 1.6; }
+  .tok-num { font-family: 'Cinzel', Georgia, serif; font-weight: 800; fill: #41382a; text-anchor: middle; }
   .tok-num.hot { fill: #c0392b; }
-  .edge-tap { stroke: transparent; stroke-width: 16; cursor: pointer; }
-  .road { stroke-width: 7; stroke-linecap: round; pointer-events: none; }
-  .edge-hl { stroke: #ffe16b; stroke-width: 9; stroke-linecap: round; stroke-dasharray: 4 6; opacity: .9; pointer-events: none; }
+  .pip { fill: #6b5e46; } .pip.hot { fill: #c0392b; }
+  .edge-tap { stroke: transparent; stroke-width: 18; cursor: pointer; }
+  .road-under { stroke: #10222e; stroke-width: 9.5; stroke-linecap: round; pointer-events: none; }
+  .road { stroke-width: 6; stroke-linecap: round; pointer-events: none; }
+  .edge-hl { stroke: #ffe16b; stroke-width: 9; stroke-linecap: round; stroke-dasharray: 4 7; opacity: .9; pointer-events: none; }
   .vert-tap { fill: transparent; cursor: pointer; }
-  .vert-hl { fill: #ffe16b; opacity: .85; pointer-events: none; }
-  .bld { stroke: #10222e; stroke-width: 1.5; pointer-events: none; }
-  .port-lbl { font-size: 13px; font-weight: 700; fill: #eef3f6; text-anchor: middle; }
-  .port-line { stroke: #cfe3ee; stroke-width: 2; stroke-dasharray: 3 4; opacity: .7; }
+  .vert-hl { fill: #ffe16b; opacity: .9; pointer-events: none; }
+  .bld { stroke: #10222e; stroke-width: 1.6; pointer-events: none; filter: drop-shadow(0 2px 1.5px rgba(0,0,0,.45)); }
+  .port-lbl { font-size: 12.5px; font-weight: 800; fill: var(--parchment); text-anchor: middle; font-family: 'Alegreya Sans', sans-serif; }
+  .port-line { stroke: #cfe3ee; stroke-width: 2; stroke-dasharray: 3 4; opacity: .55; }
   @keyframes pulse { 50% { opacity: .35; } }
   .vert-hl, .edge-hl, .hex.hl { animation: pulse 1.1s infinite; }
 
-  #bottom { flex-shrink: 0; background: var(--panel); padding: 6px 8px 10px; display: flex; flex-direction: column; gap: 7px; }
+  #bottom {
+    flex-shrink: 0; padding: 7px 8px 10px; display: flex; flex-direction: column; gap: 7px;
+    background: linear-gradient(180deg, var(--wood-1), var(--wood-2));
+    border-top: 2px solid rgba(233,180,76,.35);
+    box-shadow: 0 -6px 18px rgba(0,0,0,.4);
+  }
   #hand { display: flex; gap: 6px; justify-content: center; }
   .rcard {
-    flex: 1; max-width: 64px; border-radius: 10px; padding: 5px 0 3px; text-align: center;
-    font-size: 17px; line-height: 1.1; color: #fff; font-weight: 800;
-    box-shadow: inset 0 -3px rgba(0,0,0,.25);
+    flex: 1; max-width: 66px; border-radius: 10px; padding: 5px 0 3px; text-align: center;
+    font-size: 18px; line-height: 1.05; color: #fff; font-weight: 800;
+    box-shadow: inset 0 2px rgba(255,255,255,.25), inset 0 -3px rgba(0,0,0,.3), 0 2px 3px rgba(0,0,0,.35);
+    border: 1px solid rgba(0,0,0,.3);
   }
-  .rcard small { display: block; font-size: 15px; }
+  .rcard small { display: block; font-size: 15px; text-shadow: 0 1px 1px rgba(0,0,0,.5); }
   #actions { display: flex; gap: 6px; }
-  #actions button { flex: 1; padding: 11px 4px; font-size: 13px; }
-  #actions button.active { outline: 2px solid var(--accent); }
+  #actions button { flex: 1; padding: 11px 4px; font-size: 13px; line-height: 1.25; }
+  #actions button.active { outline: 2.5px solid var(--gold); }
+  #actions button.roll {
+    font-family: 'Cinzel', serif; font-size: 19px; letter-spacing: 2px; padding: 14px 4px;
+    animation: glow 1.6s ease-in-out infinite;
+  }
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 6px rgba(233,180,76,.4); }
+    50%      { box-shadow: 0 2px 0 rgba(0,0,0,.35), 0 0 22px rgba(233,180,76,.85); }
+  }
 
   /* ---------- modals ---------- */
   #overlay {
-    position: fixed; inset: 0; background: rgba(5, 15, 22, .72);
+    position: fixed; inset: 0; background: rgba(4, 13, 19, .76);
     display: flex; align-items: flex-end; justify-content: center; z-index: 50;
   }
   @media (min-width: 600px) { #overlay { align-items: center; } }
   .modal {
-    background: var(--panel); border-radius: 18px 18px 0 0; padding: 18px 16px 26px;
-    width: 100%; max-width: 480px; max-height: 82dvh; overflow-y: auto;
+    background: linear-gradient(180deg, #18303f, var(--panel)); border-radius: 18px 18px 0 0;
+    padding: 18px 16px 26px; width: 100%; max-width: 480px; max-height: 84dvh; overflow-y: auto;
+    border-top: 2px solid rgba(233,180,76,.4);
   }
-  @media (min-width: 600px) { .modal { border-radius: 18px; } }
-  .modal h3 { margin: 0 0 12px; }
+  @media (min-width: 600px) { .modal { border-radius: 18px; border: 1px solid rgba(233,180,76,.3); } }
+  .modal h3 { margin: 0 0 12px; font-family: 'Cinzel', serif; letter-spacing: 1px; color: var(--gold); }
   .modal .row { display: flex; gap: 8px; margin-top: 12px; }
   .modal .row button { flex: 1; }
   .stepper { display: flex; align-items: center; justify-content: space-between; margin: 6px 0; gap: 8px; }
-  .stepper .lab { flex: 1; font-weight: 600; }
-  .stepper button { width: 40px; height: 36px; padding: 0; font-size: 18px; }
-  .stepper .val { width: 28px; text-align: center; font-weight: 800; }
+  .stepper .lab { flex: 1; font-weight: 700; }
+  .stepper button { width: 42px; height: 36px; padding: 0; font-size: 18px; }
+  .stepper .val { width: 28px; text-align: center; font-weight: 800; font-size: 16px; }
   .pick-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
-  .pick-grid button { padding: 12px 0; font-size: 20px; }
-  .devrow { display: flex; align-items: center; justify-content: space-between; background: var(--panel2); border-radius: 10px; padding: 10px 12px; margin: 6px 0; }
+  .pick-grid button { padding: 11px 0 8px; font-size: 20px; }
+  .pick-grid small { display: block; font-size: 11px; font-weight: 700; color: var(--muted); }
+  .pick-grid button.primary small { color: #5c3f10; }
+  .devrow {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--panel2); border-radius: 10px; padding: 10px 12px; margin: 6px 0;
+  }
   .seg { display: flex; background: var(--panel2); border-radius: 10px; padding: 3px; margin-bottom: 10px; }
-  .seg button { flex: 1; background: transparent; padding: 8px; }
-  .seg button.on { background: var(--accent); color: #2b1d00; }
-  .tradeside h4 { margin: 10px 0 2px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; }
+  .seg button { flex: 1; background: transparent; box-shadow: none; padding: 8px; }
+  .seg button.on { background: var(--gold); color: #34230a; }
+  .tradeside h4 { margin: 10px 0 2px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+  /* help card */
+  .helpcard {
+    background: var(--parchment); color: #41382a; border-radius: 12px; padding: 12px 14px;
+    box-shadow: inset 0 0 0 2px #d9cba4, 0 3px 6px rgba(0,0,0,.35);
+  }
+  .helpcard h4 {
+    margin: 10px 0 4px; font-family: 'Cinzel', serif; font-size: 13px; letter-spacing: 1px;
+    color: #7a5b1e; border-bottom: 1.5px solid #d9cba4; padding-bottom: 3px;
+  }
+  .helpcard h4:first-child { margin-top: 0; }
+  .costline { display: flex; justify-content: space-between; align-items: center; padding: 3.5px 0; font-weight: 700; font-size: 14px; }
+  .costline .c { letter-spacing: 1.5px; }
+  .costline .vp { color: #7a5b1e; font-size: 12px; }
+  .helpcard p { margin: 3px 0; font-size: 12.5px; line-height: 1.45; font-weight: 500; }
+  .helpcard b { color: #6b3f12; }
 
   #toast {
     position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-    background: #b3392f; color: #fff; padding: 9px 16px; border-radius: 10px;
-    font-weight: 600; font-size: 14px; z-index: 99; max-width: 90vw; text-align: center;
+    background: var(--red); color: #fff; padding: 9px 16px; border-radius: 10px;
+    font-weight: 700; font-size: 14px; z-index: 99; max-width: 90vw; text-align: center;
     transition: opacity .3s; opacity: 0; pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0,0,0,.45);
   }
   #log {
-    position: absolute; left: 6px; bottom: 6px; right: 6px; max-height: 72px;
-    overflow: hidden; font-size: 11px; color: #d7e6ef; pointer-events: none;
+    position: absolute; left: 8px; bottom: 6px; right: 8px; max-height: 74px;
+    overflow: hidden; font-size: 11.5px; color: #e3eef5; pointer-events: none;
     display: flex; flex-direction: column; justify-content: flex-end;
-    text-shadow: 0 1px 2px rgba(0,0,0,.7);
+    text-shadow: 0 1px 3px rgba(0,0,0,.9); font-weight: 600;
   }
   #winBox { text-align: center; }
   #winBox .trophy { font-size: 64px; }
@@ -160,20 +234,20 @@
 <div id="joinScreen" class="screen">
   <h1>CATAN<small>SETTLERS · LAN</small></h1>
   <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
-  <button class="primary" style="width:240px" onclick="join()">Join game</button>
+  <button class="primary" style="width:250px;padding:13px" onclick="join()">Join game</button>
   <div class="hint">Everyone on the same wifi opens this address to play. 2–4 players.</div>
 </div>
 
 <div id="lobbyScreen" class="screen hidden">
   <h1>LOBBY</h1>
   <div class="lobby-list" id="lobbyList"></div>
-  <button class="primary hidden" id="startBtn" style="width:240px" onclick="api('start')">Start game</button>
+  <button class="primary hidden" id="startBtn" style="width:250px;padding:13px" onclick="api('start')">Start game</button>
   <div class="hint" id="lobbyHint"></div>
 </div>
 
 <div id="game" class="hidden">
   <div id="players"></div>
-  <div id="status"></div>
+  <div id="status"><span id="statusInner"></span><button id="helpBtn" onclick="openModal('help')">?</button></div>
   <div id="boardWrap">
     <svg id="board"></svg>
     <div id="log"></div>
@@ -192,8 +266,7 @@
 
 const RES = ['wood','brick','sheep','wheat','ore'];
 const RES_EMOJI = { wood:'🌲', brick:'🧱', sheep:'🐑', wheat:'🌾', ore:'⛰️' };
-const RES_COLOR = { wood:'#1f7a36', brick:'#c4622d', sheep:'#7cb342', wheat:'#d9a514', ore:'#6d7178' };
-const HEX_FILL  = { wood:'#2d8a44', brick:'#cf6a32', sheep:'#a7d05a', wheat:'#e8c640', ore:'#8b8d93', desert:'#dbc79a' };
+const RES_COLOR = { wood:'#1f7a36', brick:'#b85427', sheep:'#79a838', wheat:'#cc9a12', ore:'#646a75' };
 const DEV_NAMES = { knight:'Knight', victory:'Victory Point', roadBuilding:'Road Building', yearOfPlenty:'Year of Plenty', monopoly:'Monopoly' };
 const COSTS_TXT = { road:'🌲🧱', settlement:'🌲🧱🐑🌾', city:'🌾🌾⛰️⛰️⛰️', dev:'🐑🌾⛰️' };
 const SC = 60; // board scale
@@ -204,6 +277,7 @@ let mode = null;       // road | settlement | city | robber
 let modal = null;      // current modal name
 let modalData = {};    // scratch state for modals
 let es = null;
+let lastDiceKey = '';
 
 // ---------- networking ----------
 
@@ -305,11 +379,11 @@ function syncMode() {
 function renderPlayers() {
   el('players').innerHTML = S.players.map(p => {
     const turn = (S.phase === 'main' && S.turn === p.id) || (S.phase === 'setup' && S.setupPlayer === p.id);
-    const badges = [p.longestRoad ? '🛣️LR' : '', p.largestArmy ? '⚔️LA' : ''].filter(Boolean).join(' ');
+    const badges = [p.longestRoad ? '🛣️ LR' : '', p.largestArmy ? '⚔️ LA' : ''].filter(Boolean).join('  ');
     const pts = p.id === me() ? S.you.points : p.points;
     return `<div class="pchip ${turn ? 'turn' : ''}">
       <span class="nm"><span class="dot" style="background:${p.color}"></span>${esc(p.name)}${p.id === me() ? ' (you)' : ''}</span>
-      <span class="st"><b style="color:var(--accent)">★${pts}</b> 🎴${p.cards} 📜${p.devCards} ⚔️${p.knights}</span>
+      <span class="st"><b style="color:var(--gold)">★${pts}</b> 🎴${p.cards} 📜${p.devCards} ⚔️${p.knights}</span>
       <span class="badges">${badges}</span>
     </div>`;
   }).join('');
@@ -319,22 +393,42 @@ function statusText() {
   if (S.phase === 'ended') return 'Game over';
   if (S.phase === 'setup') {
     const n = pl(S.setupPlayer).name;
-    const what = S.setupStep === 'settlement' ? 'settlement' : 'road';
-    return mySetup() ? `Tap a spot for your ${what}` : `${esc(n)} is placing a ${what}…`;
+    const what = S.setupStep === 'settlement' ? 'settlement 🏠' : 'road 🛣️';
+    return mySetup() ? `Tap a glowing spot — place a ${what}` : `${esc(n)} is placing a ${what}…`;
   }
   if (S.mustDiscard > 0) return 'Discard cards';
   if (S.waitDiscard && S.waitDiscard.length)
     return 'Waiting for ' + S.waitDiscard.map(id => esc(pl(id).name)).join(', ') + ' to discard…';
-  if (S.robberPending) return S.turn === me() ? 'Tap a hex to move the robber' : `${esc(pl(S.turn).name)} is moving the robber…`;
+  if (S.robberPending) return S.turn === me() ? '🦹 Tap a hex to move the robber' : `${esc(pl(S.turn).name)} is moving the robber…`;
   if (S.stealPending) return S.turn === me() ? 'Choose who to rob' : `${esc(pl(S.turn).name)} is robbing…`;
   if (S.freeRoads > 0 && myTurn()) return `Place ${S.freeRoads} free road${S.freeRoads > 1 ? 's' : ''}`;
-  if (myTurn()) return S.rolled ? 'Build, trade, or end your turn' : 'Your turn — roll the dice!';
+  if (myTurn()) return S.rolled ? 'Build, trade, or end your turn' : 'Your turn!';
   return `${esc(pl(S.turn).name)}'s turn…`;
 }
 
+// pip layouts for die faces
+const PIPS = {
+  1: [[0,0]], 2: [[-1,-1],[1,1]], 3: [[-1,-1],[0,0],[1,1]],
+  4: [[-1,-1],[1,-1],[-1,1],[1,1]], 5: [[-1,-1],[1,-1],[0,0],[-1,1],[1,1]],
+  6: [[-1,-1],[1,-1],[-1,0],[1,0],[-1,1],[1,1]],
+};
+function dieSVG(n) {
+  const pips = PIPS[n].map(([x, y]) =>
+    `<circle cx="${14 + x * 7}" cy="${14 + y * 7}" r="2.7" fill="#222"/>`).join('');
+  return `<svg width="28" height="28" viewBox="0 0 28 28">
+    <rect x="1" y="1" width="26" height="26" rx="6" fill="#fdfaf2" stroke="#b8a87e"/>${pips}</svg>`;
+}
+
 function renderStatus() {
-  const dice = S.diceA ? `<span id="dice"><span class="die">${S.diceA}</span><span class="die">${S.diceB}</span></span>` : '';
-  el('status').innerHTML = `${dice}<span>${statusText()}</span>`;
+  const dice = S.diceA ? `<span id="dice">${dieSVG(S.diceA)}${dieSVG(S.diceB)}</span>` : '';
+  el('statusInner').innerHTML = `${dice}<span>${statusText()}</span>`;
+  // shake the dice when a new roll arrives
+  const key = S.diceA ? `${S.turn}-${S.diceA}-${S.diceB}-${S.rolled}` : '';
+  if (S.diceA && key !== lastDiceKey) {
+    const d = el('dice');
+    if (d) { d.classList.add('rolling'); setTimeout(() => d && d.classList.remove('rolling'), 600); }
+  }
+  lastDiceKey = key;
 }
 
 // ---------- board ----------
@@ -348,6 +442,96 @@ function hexCorners(h) {
   return pts;
 }
 
+// SVG defs: terrain gradients + hand-drawn terrain icons, robber, ship
+function boardDefs() {
+  const grad = (id, c1, c2) =>
+    `<radialGradient id="${id}" cx="50%" cy="38%" r="80%">
+       <stop offset="0%" stop-color="${c1}"/><stop offset="100%" stop-color="${c2}"/>
+     </radialGradient>`;
+  return `<defs>
+    ${grad('g-wood',   '#3f9b55', '#246b35')}
+    ${grad('g-brick',  '#d97a42', '#a8511f')}
+    ${grad('g-sheep',  '#b8d96e', '#85ad3d')}
+    ${grad('g-wheat',  '#f0cf52', '#c79c1d')}
+    ${grad('g-ore',    '#9fa3ab', '#6f737d')}
+    ${grad('g-desert', '#ecd9a8', '#cdb175')}
+
+    <g id="pine">
+      <rect x="-1.6" y="3" width="3.2" height="5.5" rx="1" fill="#5d3a1a"/>
+      <path d="M0 -11 L7.5 3 L-7.5 3 Z" fill="#17502a"/>
+      <path d="M0 -16 L5.5 -4.5 L-5.5 -4.5 Z" fill="#1f6b37"/>
+    </g>
+    <g id="i-wood">
+      <use href="#pine" transform="translate(-10,3) scale(.8)"/>
+      <use href="#pine" transform="translate(10,4) scale(.75)"/>
+      <use href="#pine" transform="translate(0,-3)"/>
+    </g>
+    <g id="i-brick" stroke="#7c3413" stroke-width="1">
+      <rect x="-12" y="-9" width="11" height="6" rx="1" fill="#c1502a"/>
+      <rect x="1"   y="-9" width="11" height="6" rx="1" fill="#a8431f"/>
+      <rect x="-6"  y="-2" width="11" height="6" rx="1" fill="#b54a24"/>
+      <rect x="-12" y="5"  width="11" height="6" rx="1" fill="#a8431f"/>
+      <rect x="1"   y="5"  width="11" height="6" rx="1" fill="#c1502a"/>
+    </g>
+    <g id="i-sheep">
+      <ellipse cx="-1" cy="0" rx="10" ry="6.5" fill="#f6f2e4" stroke="#c9c0a4" stroke-width="1"/>
+      <circle cx="-7" cy="-4.5" r="3.6" fill="#f6f2e4" stroke="#c9c0a4" stroke-width="1"/>
+      <circle cx="0" cy="-5.8" r="3.6" fill="#f6f2e4" stroke="#c9c0a4" stroke-width="1"/>
+      <circle cx="6" cy="-4" r="3.4" fill="#f6f2e4" stroke="#c9c0a4" stroke-width="1"/>
+      <rect x="-6" y="5" width="2.4" height="5" rx="1" fill="#5a5246"/>
+      <rect x="3" y="5" width="2.4" height="5" rx="1" fill="#5a5246"/>
+      <circle cx="9.5" cy="-2.5" r="3.4" fill="#4d463c"/>
+      <circle cx="10.6" cy="-3.2" r=".7" fill="#fff"/>
+    </g>
+    <g id="i-wheat" stroke-linecap="round">
+      <g transform="translate(-7,0) rotate(-12)">
+        <line x1="0" y1="10" x2="0" y2="-8" stroke="#8a6b14" stroke-width="1.6"/>
+        <ellipse cx="-2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -7)"/>
+        <ellipse cx="2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -7)"/>
+        <ellipse cx="-2.4" cy="-1.5" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -1.5)"/>
+        <ellipse cx="2.4" cy="-1.5" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -1.5)"/>
+        <ellipse cx="0" cy="-10.5" rx="2.1" ry="3.6" fill="#f0c52e"/>
+      </g>
+      <g transform="translate(7,1) rotate(14)">
+        <line x1="0" y1="10" x2="0" y2="-8" stroke="#8a6b14" stroke-width="1.6"/>
+        <ellipse cx="-2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(28 -2.4 -7)"/>
+        <ellipse cx="2.4" cy="-7" rx="2.1" ry="3.4" fill="#e3b51f" transform="rotate(-28 2.4 -7)"/>
+        <ellipse cx="0" cy="-10.5" rx="2.1" ry="3.6" fill="#f0c52e"/>
+      </g>
+    </g>
+    <g id="i-ore">
+      <path d="M-13 9 L-4 -8 L3 9 Z" fill="#7d828d" stroke="#565b66" stroke-width="1"/>
+      <path d="M-1 9 L7 -4 L14 9 Z" fill="#626771" stroke="#454a54" stroke-width="1"/>
+      <path d="M-6.2 -3.8 L-4 -8 L-1.8 -3.8 L-4 -2 Z" fill="#e8eaf0"/>
+      <path d="M5.3 -1.2 L7 -4 L8.7 -1.2 L7 0 Z" fill="#d4d7df"/>
+      <path d="M-9 4 l1.4 1.4 M-2 2 l1.4 1.4" stroke="#9aa0ac" stroke-width="1.2"/>
+    </g>
+    <g id="i-desert">
+      <rect x="-2" y="-11" width="4.4" height="21" rx="2.2" fill="#3e8a52"/>
+      <rect x="-9.5" y="-6" width="3.8" height="8" rx="1.9" fill="#357a47"/>
+      <rect x="-9.5" y="-1.5" width="8" height="3.6" rx="1.8" fill="#357a47"/>
+      <rect x="5.9" y="-8" width="3.8" height="7" rx="1.9" fill="#357a47"/>
+      <rect x="2" y="-4.5" width="7" height="3.6" rx="1.8" fill="#357a47"/>
+      <circle cx="13" cy="-12" r="3.4" fill="#f3c14b"/>
+    </g>
+
+    <g id="robber">
+      <ellipse cx="0" cy="13" rx="10" ry="3.4" fill="rgba(0,0,0,.4)"/>
+      <path d="M-8 12 Q-8 4 -3.4 .6 Q-6.4 -2.6 -6.4 -6.4 A6.4 6.4 0 1 1 6.4 -6.4 Q6.4 -2.6 3.4 .6 Q8 4 8 12 Z"
+        fill="#2b2837" stroke="#14121d" stroke-width="1.4"/>
+      <path d="M-6.4 -7 A6.4 6.4 0 0 1 6.4 -7" fill="none" stroke="#494459" stroke-width="1.6"/>
+    </g>
+
+    <g id="ship">
+      <path d="M-9 2 L9 2 L5.5 7 L-5.5 7 Z" fill="#7a4a22" stroke="#4d2d12" stroke-width="1"/>
+      <line x1="0" y1="2" x2="0" y2="-9" stroke="#4d2d12" stroke-width="1.5"/>
+      <path d="M1 -9 L8 -2 L1 -2 Z" fill="#f1e6cd" stroke="#c9bb98" stroke-width=".8"/>
+    </g>
+  </defs>`;
+}
+
+const HEX_GRAD = { wood:'url(#g-wood)', brick:'url(#g-brick)', sheep:'url(#g-sheep)', wheat:'url(#g-wheat)', ore:'url(#g-ore)', desert:'url(#g-desert)' };
+
 function renderBoard() {
   const B = S.board;
   if (!B) return;
@@ -357,25 +541,34 @@ function renderBoard() {
     minX = Math.min(minX, v.x * SC); maxX = Math.max(maxX, v.x * SC);
     minY = Math.min(minY, v.y * SC); maxY = Math.max(maxY, v.y * SC);
   }
-  const pad = 52;
+  const pad = 56;
   svg.setAttribute('viewBox', `${minX - pad} ${minY - pad} ${maxX - minX + 2 * pad} ${maxY - minY + 2 * pad}`);
 
-  let out = '';
+  let out = boardDefs();
 
   // hexes
   const robberMode = mode === 'robber';
   for (const h of B.hexes) {
-    const pts = hexCorners(h).map(p => p.join(',')).join(' ');
+    const corners = hexCorners(h);
+    const pts = corners.map(p => p.join(',')).join(' ');
     const click = robberMode && h.id !== B.robber;
-    out += `<polygon class="hex ${click ? 'clickable hl' : ''}" points="${pts}" fill="${HEX_FILL[h.terrain]}"
-      ${click ? `onclick="tapHex(${h.id})"` : ''}/>`;
+    const cx = h.x * SC, cy = h.y * SC;
+    out += `<polygon class="hex ${click ? 'clickable hl' : ''}" points="${pts}" fill="${HEX_GRAD[h.terrain]}"
+      ${click ? `onclick="tapHex(${h.id})"` : ''}/>
+      <polygon class="hex-rim" points="${corners.map(([x, y]) => `${cx + (x - cx) * .92},${cy + (y - cy) * .92}`).join(' ')}"/>`;
+    out += `<use href="#i-${h.terrain}" x="${cx}" y="${cy - (h.number ? 15 : 2)}" style="pointer-events:none"/>`;
     if (h.number) {
       const hot = h.number === 6 || h.number === 8;
-      out += `<circle class="tok" cx="${h.x * SC}" cy="${h.y * SC}" r="15"/>
-        <text class="tok-num ${hot ? 'hot' : ''}" x="${h.x * SC}" y="${h.y * SC + 5.5}" font-size="${hot ? 17 : 14}">${h.number}</text>`;
+      const nPips = 6 - Math.abs(7 - h.number);
+      let pips = '';
+      for (let i = 0; i < nPips; i++) {
+        pips += `<circle class="pip ${hot ? 'hot' : ''}" cx="${cx + (i - (nPips - 1) / 2) * 4.6}" cy="${cy + 23.5}" r="1.5"/>`;
+      }
+      out += `<circle class="tok" cx="${cx}" cy="${cy + 17}" r="14.5" style="pointer-events:none"/>
+        <text class="tok-num ${hot ? 'hot' : ''}" x="${cx}" y="${cy + 17 + 5.5}" font-size="${hot ? 17 : 14.5}" style="pointer-events:none">${h.number}</text>${pips}`;
     }
     if (h.id === B.robber) {
-      out += `<text x="${h.x * SC}" y="${h.y * SC - (h.number ? 18 : -7)}" font-size="22" text-anchor="middle" style="pointer-events:none">🦹</text>`;
+      out += `<use href="#robber" x="${cx}" y="${cy - (h.number ? 16 : 4)}" style="pointer-events:none"/>`;
     }
   }
 
@@ -384,11 +577,11 @@ function renderBoard() {
     const v1 = B.verts[p.v1], v2 = B.verts[p.v2];
     const mx = (v1.x + v2.x) / 2 * SC, my = (v1.y + v2.y) / 2 * SC;
     const len = Math.hypot(mx, my) || 1;
-    const ox = mx + mx / len * 30, oy = my + my / len * 30;
+    const ox = mx + mx / len * 32, oy = my + my / len * 32;
     out += `<line class="port-line" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${ox}" y2="${oy}"/>
       <line class="port-line" x1="${v2.x * SC}" y1="${v2.y * SC}" x2="${ox}" y2="${oy}"/>
-      <text class="port-lbl" x="${ox}" y="${oy - 2}">${p.ratio}:1</text>
-      <text class="port-lbl" x="${ox}" y="${oy + 14}">${p.resource ? RES_EMOJI[p.resource] : '❓'}</text>`;
+      <use href="#ship" x="${ox}" y="${oy - 9}"/>
+      <text class="port-lbl" x="${ox}" y="${oy + 12}">${p.ratio}:1 ${p.resource ? RES_EMOJI[p.resource] : '✶'}</text>`;
   }
 
   // roads + edge taps
@@ -396,12 +589,11 @@ function renderBoard() {
   for (const e of B.edges) {
     const v1 = B.verts[e.v1], v2 = B.verts[e.v2];
     const owner = B.roads ? B.roads[e.id] : undefined;
+    const c = `x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}"`;
     if (owner !== undefined) {
-      out += `<line class="road" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}"
-        stroke="${pl(owner).color}"/>`;
+      out += `<line class="road-under" ${c}/><line class="road" ${c} stroke="${pl(owner).color}"/>`;
     } else if (legalE.has(e.id)) {
-      out += `<line class="edge-hl" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}"/>
-        <line class="edge-tap" x1="${v1.x * SC}" y1="${v1.y * SC}" x2="${v2.x * SC}" y2="${v2.y * SC}" onclick="tapEdge(${e.id})"/>`;
+      out += `<line class="edge-hl" ${c}/><line class="edge-tap" ${c} onclick="tapEdge(${e.id})"/>`;
     }
   }
 
@@ -415,14 +607,21 @@ function renderBoard() {
     if (b) {
       const c = pl(b.player).color;
       if (b.type === 'settlement') {
-        out += `<path class="bld" fill="${c}" d="M ${x-8} ${y+7} L ${x-8} ${y-3} L ${x} ${y-11} L ${x+8} ${y-3} L ${x+8} ${y+7} Z"/>`;
+        out += `<g class="bld">
+          <path fill="${c}" d="M ${x-8} ${y+7} L ${x-8} ${y-2.5} L ${x} ${y-10.5} L ${x+8} ${y-2.5} L ${x+8} ${y+7} Z"/>
+          <path fill="rgba(0,0,0,.28)" d="M ${x-9.4} ${y-1.6} L ${x} ${y-11.6} L ${x+9.4} ${y-1.6} L ${x+7.2} ${y-1.6} L ${x} ${y-9} L ${x-7.2} ${y-1.6} Z"/>
+        </g>`;
       } else {
-        out += `<path class="bld" fill="${c}" d="M ${x-11} ${y+8} L ${x-11} ${y-4} L ${x-5} ${y-12} L ${x+1} ${y-4} L ${x+11} ${y-4} L ${x+11} ${y+8} Z"/>`;
+        out += `<g class="bld">
+          <path fill="${c}" d="M ${x-12} ${y+8} L ${x-12} ${y-4} L ${x-6} ${y-12} L ${x} ${y-4} L ${x} ${y-1} L ${x+12} ${y-1} L ${x+12} ${y+8} Z"/>
+          <path fill="rgba(0,0,0,.28)" d="M ${x-13.4} ${y-3} L ${x-6} ${y-13.4} L ${x+1.4} ${y-3} L ${x-1.4} ${y-3} L ${x-6} ${y-10} L ${x-10.6} ${y-3} Z"/>
+          <rect fill="rgba(255,255,255,.35)" x="${x+4}" y="${y+2}" width="4.5" height="4.5" rx="1"/>
+        </g>`;
       }
     }
     if (legalV.has(v.id)) {
       out += `<circle class="vert-hl" cx="${x}" cy="${y}" r="9"/>
-        <circle class="vert-tap" cx="${x}" cy="${y}" r="17" onclick="tapVert(${v.id})"/>`;
+        <circle class="vert-tap" cx="${x}" cy="${y}" r="18" onclick="tapVert(${v.id})"/>`;
     }
   }
 
@@ -446,7 +645,7 @@ function tapVert(id) {
 
 function renderHand() {
   el('hand').innerHTML = RES.map(r =>
-    `<div class="rcard" style="background:${RES_COLOR[r]}">${RES_EMOJI[r]}<small>${S.you.resources[r] || 0}</small></div>`
+    `<div class="rcard" style="background:linear-gradient(180deg, ${RES_COLOR[r]}, ${RES_COLOR[r]}cc)">${RES_EMOJI[r]}<small>${S.you.resources[r] || 0}</small></div>`
   ).join('');
 }
 
@@ -464,8 +663,8 @@ function renderActions() {
   }
   if (!S.rolled) {
     const knight = S.you.devCards.some(c => c.type === 'knight' && c.playable);
-    a.innerHTML = `<button class="primary" style="flex:2" onclick="api('roll')" ${S.robberPending || S.stealPending ? 'disabled' : ''}>🎲 Roll dice</button>
-      ${knight ? `<button onclick="playCard('knight')">⚔️ Knight</button>` : ''}`;
+    a.innerHTML = `<button class="primary roll" style="flex:2.4" onclick="api('roll')" ${S.robberPending || S.stealPending ? 'disabled' : ''}>🎲 ROLL DICE</button>
+      ${knight ? `<button onclick="playCard('knight')">⚔️<br>Knight</button>` : ''}`;
     return;
   }
   const r = S.you.resources;
@@ -522,9 +721,9 @@ function autoModal() {
     if (modal !== 'steal') openModal('steal');
     return;
   } else if (modal === 'steal') { closeModal(); return; }
-  if (S.trade && S.trade.from !== me() && modal !== 'tradeOffer' && modal !== 'dev') openModal('tradeOffer');
+  if (S.trade && S.trade.from !== me() && modal !== 'tradeOffer' && modal !== 'dev' && modal !== 'help') openModal('tradeOffer');
   if (!S.trade && modal === 'tradeOffer') closeModal();
-  if (modal) drawModal();
+  if (modal && modal !== 'help') drawModal();
 }
 
 function drawModal() {
@@ -537,6 +736,7 @@ function drawModal() {
   else if (modal === 'tradeOffer') body.innerHTML = tradeOfferHTML();
   else if (modal === 'pick2') body.innerHTML = pickHTML(2, 'Year of Plenty — take 2 resources');
   else if (modal === 'pick1') body.innerHTML = pickHTML(1, 'Monopoly — take everyone\'s…');
+  else if (modal === 'help') body.innerHTML = helpHTML();
   else if (modal === 'win') body.innerHTML = winHTML();
 }
 
@@ -593,8 +793,7 @@ function devHTML() {
     <div class="row">
       <button ${canBuy ? '' : 'disabled'} onclick="api('buyDev')">Buy card ${COSTS_TXT.dev} (${S.devDeckLeft} left)</button>
       <button onclick="closeModal()">Close</button>
-    </div>
-    <p class="hint">Costs — Road ${COSTS_TXT.road} · House ${COSTS_TXT.settlement} · City ${COSTS_TXT.city}</p>`;
+    </div>`;
 }
 
 function playCard(t) {
@@ -638,7 +837,7 @@ function tradeHTML() {
       <div class="pick-grid">${RES.map(r => `
         <button class="${modalData.bankGive === r ? 'primary' : ''}"
           ${(S.you.resources[r] || 0) >= (rates[r] || 4) ? '' : 'disabled'}
-          onclick="modalData.bankGive='${r}';drawModal()">${RES_EMOJI[r]}<br><small>${rates[r] || 4}:1</small></button>`).join('')}
+          onclick="modalData.bankGive='${r}';drawModal()">${RES_EMOJI[r]}<small>${rates[r] || 4}:1</small></button>`).join('')}
       </div>
       <h4>You receive</h4>
       <div class="pick-grid">${RES.map(r => `
@@ -697,6 +896,36 @@ function tradeOfferHTML() {
     <div class="devrow"><span>Gives</span><b>${fmt(t.give)}</b></div>
     <div class="devrow"><span>Wants</span><b>${fmt(t.get)}</b></div>
     ${actions}`;
+}
+
+function helpHTML() {
+  return `<h3>Quick reference</h3>
+  <div class="helpcard">
+    <h4>Building costs</h4>
+    <div class="costline"><span>🛣️ Road</span><span class="c">${COSTS_TXT.road}</span><span class="vp"></span></div>
+    <div class="costline"><span>🏠 Settlement</span><span class="c">${COSTS_TXT.settlement}</span><span class="vp">1 ★</span></div>
+    <div class="costline"><span>🏰 City</span><span class="c">${COSTS_TXT.city}</span><span class="vp">2 ★</span></div>
+    <div class="costline"><span>📜 Dev card</span><span class="c">${COSTS_TXT.dev}</span><span class="vp"></span></div>
+
+    <h4>Your turn</h4>
+    <p><b>1. Roll</b> — every settlement on a hex with that number collects (cities collect double).</p>
+    <p><b>2. Trade & build</b> — with players, or the bank at 4:1 (3:1 / 2:1 with a ⚓ port).</p>
+    <p><b>3. End turn.</b></p>
+
+    <h4>Rolling a 7</h4>
+    <p>Anyone with more than 7 cards discards half. You move the 🦹 robber: that hex stops producing, and you steal 1 card from a player next to it.</p>
+
+    <h4>Development cards</h4>
+    <p><b>Knight</b> — move the robber & steal. <b>Road Building</b> — 2 free roads. <b>Year of Plenty</b> — take 2 resources. <b>Monopoly</b> — take everyone's cards of one type. <b>Victory Point</b> — secret ★.</p>
+    <p>Max one per turn, never the turn you bought it (Knight may be played before rolling).</p>
+
+    <h4>Winning — first to 10 ★</h4>
+    <p>🏠 = 1★ · 🏰 = 2★ · 🛣️ <b>Longest Road</b> (5+) = 2★ · ⚔️ <b>Largest Army</b> (3+ knights) = 2★ · secret VP cards.</p>
+
+    <h4>Board pips</h4>
+    <p>Dots under a number = how often it rolls. <span style="color:#c0392b;font-weight:800">6 and 8</span> are the best spots.</p>
+  </div>
+  <div class="row"><button onclick="closeModal()">Close</button></div>`;
 }
 
 function winHTML() {
