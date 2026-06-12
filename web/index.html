@@ -492,6 +492,23 @@
 <script>
 'use strict';
 
+// ship every uncaught error to the server log — phones have no devtools
+function reportErr(payload) {
+  try {
+    fetch('/api/clientlog', { method: 'POST', body: JSON.stringify(Object.assign({
+      ua: navigator.userAgent, url: location.href,
+    }, payload)) }).catch(() => {});
+  } catch (e) {}
+}
+window.addEventListener('error', e => reportErr({
+  msg: e.message, src: e.filename, line: e.lineno, col: e.colno,
+  stack: e.error && e.error.stack ? String(e.error.stack).slice(0, 800) : '',
+}));
+window.addEventListener('unhandledrejection', e => reportErr({
+  msg: 'unhandledrejection: ' + (e.reason && e.reason.message || e.reason),
+  stack: e.reason && e.reason.stack ? String(e.reason.stack).slice(0, 800) : '',
+}));
+
 // persistent sprite sheet: gradients/icons usable from the board, hand,
 // and modals regardless of which board renderer is active
 const spriteHost = document.createElementNS('http://www.w3.org/2000/svg', 'svg');

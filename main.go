@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net"
@@ -63,6 +64,13 @@ func main() {
 		w.Header().Set("Cache-Control", "no-cache")
 		static.ServeHTTP(w, r)
 	}))
+	// client-side JS errors are POSTed here so they show up in the server
+	// log — debugging phones/odd browsers without devtools access
+	mux.HandleFunc("POST /api/clientlog", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(io.LimitReader(r.Body, 4096))
+		log.Printf("CLIENT-ERROR [%s] %s", r.RemoteAddr, body)
+		w.WriteHeader(204)
+	})
 	mux.HandleFunc("POST /api/join", s.handleJoin)
 	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
