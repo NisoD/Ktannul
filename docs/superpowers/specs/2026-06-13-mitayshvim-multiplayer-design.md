@@ -20,7 +20,7 @@ hosting cost. Non-commercial hobby project.
 | Lobby model | Room codes only. No public listing, no matchmaking. |
 | Persistence | Per-room gob snapshot in `data/<code>.gob`, restored on boot. |
 | Name / IP | Rename everything to **Mitayshvim** (UI title "Small Mitayshvim"). No "Catan"/"Cattan" anywhere — trademark risk. Mechanics are not copyrightable; name and artwork are protected, so we use neither. |
-| Deploy | Open item — Oracle Always Free VM or home machine + Cloudflare Tunnel (Fly.io trial already consumed; Fly no longer free). Architecture is host-agnostic: one binary + one data dir behind a TLS-terminating reverse proxy. |
+| Deploy | **Oracle Cloud Always Free VM** (account created 2026-06-13). Caddy reverse proxy terminates TLS → binary on localhost port; `data/` on local disk; systemd unit. |
 | Dependencies | Go stdlib only. No new modules. |
 
 ## Step 0 — Rename (IP hygiene)
@@ -121,12 +121,16 @@ existing playwright harness. Fix findings, re-review.
 - WebSockets, matchmaking, public room lists, accounts, chat.
 - Spectators, game history database.
 
-## Deploy (decided at deploy step)
+## Deploy — Oracle Cloud Always Free VM
 
-Two free candidates, both: reverse proxy terminates TLS → binary on
-localhost port, `data/` on local disk.
+Decided 2026-06-13 (account created). Always-free ARM VM (up to 4 OCPU /
+24GB), Ubuntu image.
 
-1. **Oracle Cloud Always Free VM** — always-on ARM VM, Caddy reverse proxy
-   (automatic TLS), systemd unit, real disk. Most ops learning.
-2. **Home machine + Cloudflare Tunnel** — free tunnel, Cloudflare edge
-   TLS/DDoS, up only while the machine is up.
+- Binary cross-compiled `GOOS=linux GOARCH=arm64`, runs as a non-root
+  systemd service on `127.0.0.1:8080`, `data/` beside it.
+- **Caddy** reverse proxy: terminates TLS (automatic Let's Encrypt),
+  forwards to localhost, sets `X-Forwarded-For` (the one proxy we trust
+  for client IP).
+- OCI security list / firewall: only 80/443 (Caddy) and 22 (SSH) open.
+- Domain: free DNS (e.g. DuckDNS) or any cheap/free hostname pointing at
+  the VM; Caddy needs a hostname for automatic TLS.
