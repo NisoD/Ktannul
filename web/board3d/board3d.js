@@ -268,6 +268,7 @@ function buildStatic(board) {
         new THREE.MeshLambertMaterial({ color: 0xe6dcbc }),
       ]);
       tok.position.set(h.x, hexTop + 0.025, h.y);
+      tok.rotation.y = Math.PI / 2; // align cap UVs so digits face the default camera upright
       staticGroup.add(tok);
     }
   }
