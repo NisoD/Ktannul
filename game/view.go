@@ -111,14 +111,14 @@ func (g *Game) viewLocked(token string) *View {
 	}
 	for _, pl := range g.Players {
 		v.Players = append(v.Players, PlayerView{
-			ID:          pl.ID,
-			Name:        pl.Name,
-			Color:       pl.Color,
-			Cards:       pl.HandSize(),
-			DevCards:    len(pl.DevCards),
-			Knights:     pl.Knights,
+			ID:       pl.ID,
+			Name:     pl.Name,
+			Color:    pl.Color,
+			Cards:    pl.HandSize(),
+			DevCards: len(pl.DevCards),
+			Knights:  pl.Knights,
 			// hidden victory cards are revealed once the game ends
-			Points: g.Points(pl, g.Phase == PhaseEnded),
+			Points:      g.Points(pl, g.Phase == PhaseEnded),
 			LongestRoad: g.LongestRoadPlayer == pl.ID,
 			LargestArmy: g.LargestArmyPlayer == pl.ID,
 			IsBot:       pl.IsBot,

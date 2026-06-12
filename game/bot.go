@@ -17,7 +17,7 @@ func (g *Game) addBot(p *Player) error {
 	b := &Player{
 		ID:        len(g.Players),
 		Name:      botNames[len(g.Players)-1],
-		Token:     newToken(g.Rng),
+		Token:     newToken(),
 		Color:     playerColors[len(g.Players)],
 		Resources: map[string]int{},
 		IsBot:     true,
@@ -338,7 +338,7 @@ func (g *Game) botWantsTrade(p *Player, give, get map[string]int) bool {
 		recv += n * worth(p.Resources[r])
 	}
 	for r, n := range get {
-		pay += n * worth(p.Resources[r] - n)
+		pay += n * worth(p.Resources[r]-n)
 	}
 	return recv > pay
 }
