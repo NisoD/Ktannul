@@ -17,6 +17,9 @@
   } catch (e) {
     window.board3dFailed = true;
     if (typeof reportErr === 'function') reportErr({ msg: '3D module failed to load: ' + e.message });
+    if (typeof toast === 'function' && /WebGL/i.test(e.message || '')) {
+      toast('3D board unavailable — WebGL is disabled in this browser. Chrome: Settings → System → "Use graphics acceleration" → Relaunch.', null, 9000);
+    }
   }
   // re-render once the 3D module is ready (state may have drawn SVG first)
   if (typeof render === 'function' && typeof S !== 'undefined' && S) render();
@@ -467,7 +470,6 @@
     <svg id="board"></svg>
     <canvas id="board3d" class="hidden"></canvas>
     <div id="boardChips">
-      <button onclick="toggle2D()" id="dimChip">2D</button>
       <button onclick="recenter()" id="centerChip">⌖</button>
       <button onclick="openModal('log')">📋</button>
     </div>
@@ -610,13 +612,13 @@ function neededSeat() {
 }
 
 let toastTimer = null;
-function toast(msg, kind) {
+function toast(msg, kind, dur = 2600) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.toggle('info', kind === 'info');
   t.style.opacity = 1;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.style.opacity = 0, 2600);
+  toastTimer = setTimeout(() => t.style.opacity = 0, dur);
 }
 
 // ---------- tiny synth SFX (no assets) ----------
@@ -1039,8 +1041,9 @@ function board3dMod() {
   return (m && typeof m.update === 'function' && typeof m.setVisible === 'function') ? m : null;
 }
 
+// 3D always; the SVG renderer exists only as an automatic fallback for
+// browsers without WebGL.
 function use3D() {
-  if (localStorage.getItem('catan_2d') === '1') return false;
   return !window.board3dFailed && !!board3dMod();
 }
 
@@ -1049,7 +1052,6 @@ function renderBoard() {
   const on3d = use3D();
   el('board').classList.toggle('hidden', !!on3d);
   el('board3d').classList.toggle('hidden', !on3d);
-  el('dimChip').textContent = on3d ? '2D' : '3D';
   el('centerChip').classList.toggle('hidden', !on3d);
   if (on3d && m) {
     try {
@@ -1066,12 +1068,6 @@ function renderBoard() {
     m.setVisible(false);
   }
   renderBoardSVG();
-}
-
-function toggle2D() {
-  localStorage.setItem('catan_2d', use3D() ? '1' : '0');
-  if (modal === 'help') closeModal();
-  renderBoard();
 }
 
 function recenter() {
@@ -1604,8 +1600,8 @@ function helpHTML() {
     <h4>Board numbers</h4>
     <p><span style="color:#c0392b;font-weight:800">6 and 8</span> roll most often — the best spots to settle.</p>
   </div>
+  ${window.board3dFailed ? '<p class="hint" style="margin-top:8px">⚠️ 3D board unavailable — WebGL is disabled in this browser. Chrome: Settings → System → enable "Use graphics acceleration", then relaunch.</p>' : ''}
   <div class="row">
-    <button onclick="toggle2D()">${use3D() ? '🗺️ Classic 2D board' : '🎲 3D board'}</button>
     <button onclick="toggleMute()">${muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
     <button onclick="closeModal()">Close</button>
   </div>`;
