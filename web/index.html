@@ -9,13 +9,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
-<script src="vendor/qrcode.js"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js"}}</script>
+<script src="vendor/qrcode.js?v=2"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js?v=2"}}</script>
 <script type="module">
   try {
-    window.board3d = await import('./board3d/board3d.js');
+    window.board3d = await import('./board3d/board3d.js?v=2'); // ?v busts stale caches
   } catch (e) {
     window.board3dFailed = true;
+    if (typeof reportErr === 'function') reportErr({ msg: '3D module failed to load: ' + e.message });
   }
   // re-render once the 3D module is ready (state may have drawn SVG first)
   if (typeof render === 'function' && typeof S !== 'undefined' && S) render();
@@ -887,8 +888,9 @@ function spawnGains(gains) {
     const h = hexById[gn.hex];
     if (!h) return;
     let sx, sy;
-    if (use3D() && window.board3d.hexToScreen) {
-      const p = window.board3d.hexToScreen(gn.hex);
+    const m = board3dMod();
+    if (use3D() && m && m.hexToScreen) {
+      const p = m.hexToScreen(gn.hex);
       if (!p) return;
       [sx, sy] = p;
     } else {
@@ -1029,29 +1031,39 @@ const HEX_GRAD = { wood:'url(#g-wood)', brick:'url(#g-brick)', sheep:'url(#g-she
 
 // ---------- renderer dispatch: 3D (Three.js) with SVG fallback ----------
 
+// The 3D module namespace — NEVER window.board3d directly: the canvas
+// id="board3d" creates a same-named window global (a DOM element, no
+// setVisible), which shadows the namespace until the module loads.
+function board3dMod() {
+  const m = window.board3d;
+  return (m && typeof m.update === 'function' && typeof m.setVisible === 'function') ? m : null;
+}
+
 function use3D() {
   if (localStorage.getItem('catan_2d') === '1') return false;
-  return !window.board3dFailed && window.board3d;
+  return !window.board3dFailed && !!board3dMod();
 }
 
 function renderBoard() {
+  const m = board3dMod();
   const on3d = use3D();
   el('board').classList.toggle('hidden', !!on3d);
   el('board3d').classList.toggle('hidden', !on3d);
   el('dimChip').textContent = on3d ? '2D' : '3D';
   el('centerChip').classList.toggle('hidden', !on3d);
-  if (on3d) {
+  if (on3d && m) {
     try {
-      window.board3d.setVisible(true);
-      window.board3d.update(S, mode, pending);
+      m.setVisible(true);
+      m.update(S, mode, pending);
       return;
     } catch (e) {
+      reportErr({ msg: '3D render failed: ' + e.message, stack: String(e.stack || '').slice(0, 600) });
       window.board3dFailed = true;
       el('board').classList.remove('hidden');
       el('board3d').classList.add('hidden');
     }
-  } else if (window.board3d) {
-    window.board3d.setVisible(false);
+  } else if (m) {
+    m.setVisible(false);
   }
   renderBoardSVG();
 }
@@ -1063,7 +1075,8 @@ function toggle2D() {
 }
 
 function recenter() {
-  if (use3D() && window.board3d.resetCamera) window.board3d.resetCamera();
+  const m = board3dMod();
+  if (use3D() && m && m.resetCamera) m.resetCamera();
 }
 
 function renderBoardSVG() {
