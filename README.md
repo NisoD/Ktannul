@@ -1,25 +1,16 @@
-# Catan — LAN edition
+# Small Mitayshvim
 
-A Settlers of Catan clone with full base-game rules. Go backend, single-page
-mobile-first HTML frontend. Everyone on the same wifi plays from their phone.
+A hex-based settlement and trading board game for 2–4 players (plus bots).
+Go backend (stdlib only), single-page web frontend with a Three.js 3D board.
+Friends join via 6-character room codes.
 
 ## Run
 
 ```sh
-go run .
+go run . -addr :8080 -data ./data
 ```
 
-The server prints the LAN URLs, e.g.
-
-```
-Players on the same wifi can join at:
-  http://192.168.1.42:8080
-```
-
-Each player opens that address on their phone, enters a name, and the first
-player (host 👑) starts the game. 2–4 players.
-
-Custom port: `go run . -addr :9000`
+Open http://localhost:8080, create a game, share the room link or QR code.
 
 ## Rules implemented
 
@@ -45,17 +36,20 @@ Custom port: `go run . -addr :9000`
 - `game/board.go` — board generation: hex/vertex/edge graph, ports
 - `game/game.go` — rules engine; every action validated server-side
 - `game/view.go` — per-player state (your hand is private) + legal-move hints
-- `main.go` — HTTP server; actions via `POST /api/action`, realtime state via
-  Server-Sent Events (`GET /api/events`); frontend embedded in the binary
-- `web/index.html` — the whole UI: SVG board, touch placement, modals
+- `hub.go` — game rooms: create/join by code, snapshots, idle expiry
+- `httpserver.go` — room-scoped HTTP API, rate limits, security headers
+- `main.go` — wiring, bot ticker, janitor, graceful shutdown
+- `web/landing.html` — create/join page
+- `web/index.html` — the whole game UI: 3D board, touch placement, modals
 
-No external dependencies — Go stdlib only. State is in-memory (one game per
-server process); players reconnect automatically via a token in localStorage.
+No external dependencies — Go stdlib only. Each room snapshots to
+`data/<code>.gob` and survives restarts; players reconnect automatically via
+a token in localStorage.
 
 ## Tests
 
 ```sh
-go test ./...
+go test ./... -race
 ```
 
 Includes board-shape invariants and full random-bot game simulations that

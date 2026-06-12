@@ -1,6 +1,8 @@
 package game
 
 import (
+	crand "crypto/rand"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -190,7 +192,7 @@ func (g *Game) Join(name, token string, resume bool) (*Player, error) {
 	p := &Player{
 		ID:        len(g.Players),
 		Name:      name,
-		Token:     newToken(g.Rng),
+		Token:     newToken(),
 		Color:     playerColors[len(g.Players)],
 		Resources: map[string]int{},
 	}
@@ -218,19 +220,21 @@ func (g *Game) ClaimSeat(id int) (*Player, error) {
 	}
 	// Rotate the token so the previous device loses control — prevents a
 	// claimed seat from being driven from two places at once.
-	p.Token = newToken(g.Rng)
+	p.Token = newToken()
 	g.logf("%s's seat was resumed on a new device", p.Name)
 	g.notify()
 	return p, nil
 }
 
-func newToken(rng *rand.Rand) string {
-	const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, 24)
-	for i := range b {
-		b[i] = chars[rng.IntN(len(chars))]
+// newToken returns a 128-bit crypto/rand token. The game Rng (PCG) is NOT
+// used here: its state is recoverable from observed dice rolls, which would
+// make session tokens predictable.
+func newToken() string {
+	b := make([]byte, 16)
+	if _, err := crand.Read(b); err != nil {
+		panic(err) // crypto/rand failure means a broken host
 	}
-	return string(b)
+	return hex.EncodeToString(b)
 }
 
 // ---- Action dispatch ----
