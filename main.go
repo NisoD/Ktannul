@@ -60,6 +60,9 @@ func main() {
 		Addr:              *addr,
 		Handler:           s.routes(),
 		ReadHeaderTimeout: 5 * time.Second,
+		// Bounds slow-body drip attacks. Applies to reading the request
+		// only — SSE response streaming is unaffected.
+		ReadTimeout: 10 * time.Second,
 	}
 	go func() {
 		log.Printf("Mitayshvim server listening on %s", *addr)

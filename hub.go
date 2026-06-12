@@ -156,6 +156,10 @@ func (h *Hub) expire() {
 		}
 		close(r.done)
 		delete(h.rooms, code)
+		// Known benign race: if fanout is mid-Save when we remove, the file
+		// can reappear and the room resurrects on next boot — where it just
+		// idles past its TTL and gets expired again. Self-healing, not worth
+		// a sync barrier.
 		if err := os.Remove(h.path(code)); err != nil && !os.IsNotExist(err) {
 			log.Printf("remove snapshot %s: %v", code, err)
 		}
