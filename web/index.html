@@ -533,6 +533,7 @@ const ROOM = (location.pathname.match(/^\/r\/([A-Z2-9]{6})$/) || [])[1];
 if (!ROOM) location.replace('/');
 const API = '/api/r/' + ROOM;
 const SEATS_KEY = 'mv_seats:' + ROOM;
+try { localStorage.setItem('mv_last_room', ROOM); } catch (e) {}
 
 // Seats: every player controlled from THIS device (hot-seat support).
 let seats = [];
