@@ -57,7 +57,12 @@ func main() {
 		static = http.FileServer(http.FS(staticFS))
 	}
 	mux := http.NewServeMux()
-	mux.Handle("/", static)
+	// no-cache: browsers revalidate on every load (304s keep it fast).
+	// Without this a regular refresh can mix cached old JS with new files.
+	mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		static.ServeHTTP(w, r)
+	}))
 	mux.HandleFunc("POST /api/join", s.handleJoin)
 	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
