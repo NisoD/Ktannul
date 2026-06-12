@@ -441,7 +441,9 @@ function fitCamera(board) {
   // Portrait phones: look down more steeply (less foreshortening) and
   // hug the island — the board, not the sea, should fill the screen.
   const portrait = aspect < 0.8;
-  const defPhi = portrait ? 1.18 : 0.95;
+  // steeper look-down in portrait: less foreshortening → the island fills
+  // the tall canvas instead of leaving an empty sea band
+  const defPhi = portrait ? 1.26 : 0.95;
   const margin = portrait ? 0.55 : 1.1;
   const radius = Math.max(maxX - minX, maxY - minY) / 2 + margin;
   const fov = camera.fov * Math.PI / 180;

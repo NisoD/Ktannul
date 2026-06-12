@@ -261,7 +261,7 @@
     transition: opacity .3s; opacity: 0; pointer-events: none;
     box-shadow: 0 8px 24px rgba(0,0,0,.5); border: 1px solid rgba(255,255,255,.18);
   }
-  #toast.info { background: linear-gradient(180deg, #f4c764, var(--gold-dark)); color: #2b1d00; top: 96px; }
+  #toast.info { background: linear-gradient(180deg, #f4c764, var(--gold-dark)); color: #2b1d00; top: 148px; }
   @keyframes buildingPlace { 0% { opacity: 0; } 100% { opacity: 1; } }
   .bld { animation: buildingPlace .3s ease-out; }
   button { transition: transform .08s, box-shadow .08s, filter .15s; }
@@ -1251,7 +1251,7 @@ function renderActions() {
   }
   if (S.phase === 'ended') {
     a.innerHTML = seatOf(0) !== -1
-      ? `<button class="primary" onclick="api('newGame')">Play again</button>`
+      ? `<button class="primary" onclick="apiHost('newGame')">Play again</button>`
       : `<button onclick="openModal('win')">Final standings</button>`;
     return;
   }
@@ -1583,7 +1583,7 @@ function winHTML() {
     ${S.players.map(p => `<div class="devrow"><span><span class="dot" style="display:inline-block;background:${p.color}"></span> ${esc(p.name)}</span><b>★ ${p.id === me() ? S.you.points : p.points}</b></div>`).join('')}
     ${histo}
     <div class="row">
-      ${host ? `<button class="primary" onclick="api('newGame').then(ok=>ok&&closeModal())">Play again</button>` : ''}
+      ${host ? `<button class="primary" onclick="apiHost('newGame');closeModal()">Play again</button>` : ''}
       <button onclick="closeModal()">Close</button>
     </div>
     ${host ? '' : '<p class="hint" style="text-align:center">The host starts the rematch.</p>'}
