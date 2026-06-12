@@ -44,6 +44,8 @@ type Player struct {
 	Setts     int
 	Cities    int
 	IsBot     bool
+	// LastOfferTurn throttles bot-initiated trades to one per turn.
+	LastOfferTurn int
 }
 
 func (p *Player) HandSize() int {
@@ -272,6 +274,8 @@ func (g *Game) dispatch(p *Player, a Action) error {
 		return g.addBot(p)
 	case "removeBot":
 		return g.removeBot(p)
+	case "soloStart":
+		return g.soloStart(p)
 	case "placeSetupSettlement":
 		return g.placeSetupSettlement(p, a.Vertex)
 	case "placeSetupRoad":
@@ -335,6 +339,24 @@ func (g *Game) newGame(p *Player) error {
 	}
 	g.beginGame()
 	g.logf("--- new game ---")
+	return nil
+}
+
+// soloStart fills the remaining seats with bots and begins — one tap from
+// "alone in the lobby" to a full table.
+func (g *Game) soloStart(p *Player) error {
+	if g.Phase != PhaseLobby {
+		return errors.New("not in lobby")
+	}
+	if p.ID != 0 {
+		return errors.New("only the host can start")
+	}
+	for len(g.Players) < 4 {
+		if err := g.addBot(p); err != nil {
+			return err
+		}
+	}
+	g.beginGame()
 	return nil
 }
 

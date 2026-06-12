@@ -437,9 +437,12 @@
       <input id="addNameInput" maxlength="16" placeholder="Add player (this device)" style="width:auto;flex:1;font-size:15px;padding:10px 12px">
       <button onclick="join('addNameInput')" style="width:52px;font-size:20px">＋</button>
     </div>
-    <div id="botControls" class="hidden" style="display:flex;gap:6px">
-      <button style="flex:1" onclick="apiHost('addBot')">🤖 Add bot</button>
-      <button style="flex:1" onclick="apiHost('removeBot')">− Bot</button>
+    <div id="botControls" class="hidden" style="display:flex;flex-direction:column;gap:6px">
+      <button class="primary" style="padding:12px" onclick="apiHost('soloStart')">🎲 Solo vs bots — start now</button>
+      <div style="display:flex;gap:6px">
+        <button style="flex:1" onclick="apiHost('addBot')">🤖 Add bot</button>
+        <button style="flex:1" onclick="apiHost('removeBot')">− Bot</button>
+      </div>
     </div>
   </div>
   <button class="primary hidden" id="startBtn" style="width:250px;padding:13px" onclick="apiHost('start')">Start game</button>

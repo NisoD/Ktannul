@@ -117,7 +117,8 @@ func (g *Game) viewLocked(token string) *View {
 			Cards:       pl.HandSize(),
 			DevCards:    len(pl.DevCards),
 			Knights:     pl.Knights,
-			Points:      g.Points(pl, false),
+			// hidden victory cards are revealed once the game ends
+			Points: g.Points(pl, g.Phase == PhaseEnded),
 			LongestRoad: g.LongestRoadPlayer == pl.ID,
 			LargestArmy: g.LargestArmyPlayer == pl.ID,
 			IsBot:       pl.IsBot,

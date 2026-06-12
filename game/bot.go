@@ -83,15 +83,24 @@ func (g *Game) botStepLocked() bool {
 		return g.discard(p, greedyDiscard(p, need)) == nil
 	}
 
-	// Respond to a pending human trade offer.
-	if g.Trade != nil {
+	// Respond to a pending trade offer from someone else.
+	if g.Trade != nil && g.Phase == PhaseMain {
 		for _, p := range g.Players {
 			if !p.IsBot || p.ID == g.Trade.From || tradeResponded(g.Trade, p.ID) {
 				continue
 			}
-			// Accept only clearly good deals: more cards in than out.
-			accept := sum(g.Trade.Give) > sum(g.Trade.Get) && p.has(g.Trade.Get)
-			return g.respondTrade(p, accept) == nil
+			return g.respondTrade(p, g.botWantsTrade(p, g.Trade.Give, g.Trade.Get)) == nil
+		}
+		// A bot's own offer: confirm the first accepter, or withdraw once
+		// everyone has answered.
+		if from := g.Players[g.Trade.From]; from.IsBot {
+			if len(g.Trade.Accepted) > 0 {
+				return g.confirmTrade(from, g.Trade.Accepted[0]) == nil
+			}
+			if len(g.Trade.Accepted)+len(g.Trade.Rejected) >= len(g.Players)-1 {
+				return g.cancelTrade(from) == nil
+			}
+			return false // humans still deciding
 		}
 	}
 
@@ -185,6 +194,17 @@ func (g *Game) botStepLocked() bool {
 	}
 	if p.has(BuildCosts["dev"]) && len(g.DevDeck) > 0 {
 		return g.buyDev(p) == nil
+	}
+
+	// Stuck but holding a surplus? Offer the table a trade before falling
+	// back to the bank's awful rates. One offer per turn.
+	if p.LastOfferTurn != g.TurnCount && g.Trade == nil {
+		if give, get := g.botTradeIdea(p); give != "" {
+			p.LastOfferTurn = g.TurnCount
+			if g.offerTrade(p, map[string]int{give: 1}, map[string]int{get: 1}) == nil {
+				return true
+			}
+		}
 	}
 
 	// Maritime trade out of a hoarded pile toward whatever is missing.
@@ -299,6 +319,56 @@ func (g *Game) hasPlayable(p *Player, card string) bool {
 		}
 	}
 	return false
+}
+
+// botWantsTrade scores a deal by scarcity: a resource is worth more the
+// fewer you hold. give = what the bot would receive, get = what it pays.
+func (g *Game) botWantsTrade(p *Player, give, get map[string]int) bool {
+	if !p.has(get) {
+		return false
+	}
+	worth := func(have int) int {
+		if have > 3 {
+			have = 3
+		}
+		return 4 - have
+	}
+	recv, pay := 0, 0
+	for r, n := range give {
+		recv += n * worth(p.Resources[r])
+	}
+	for r, n := range get {
+		pay += n * worth(p.Resources[r] - n)
+	}
+	return recv > pay
+}
+
+// botTradeIdea proposes 1 surplus card for 1 missing card when the bot
+// holds a pile of something and lacks a build ingredient.
+func (g *Game) botTradeIdea(p *Player) (give, get string) {
+	needed := map[string]bool{}
+	for _, cost := range []map[string]int{BuildCosts["settlement"], BuildCosts["city"], BuildCosts["road"]} {
+		for r, n := range cost {
+			if p.Resources[r] < n {
+				needed[r] = true
+			}
+		}
+	}
+	bestGive, bestN := "", 2 // require at least 3 of the surplus resource
+	for _, r := range Resources {
+		if !needed[r] && p.Resources[r] > bestN {
+			bestGive, bestN = r, p.Resources[r]
+		}
+	}
+	if bestGive == "" {
+		return "", ""
+	}
+	for _, r := range Resources {
+		if needed[r] && p.Resources[r] == 0 {
+			return bestGive, r
+		}
+	}
+	return "", ""
 }
 
 func tradeResponded(t *TradeOffer, pid int) bool {
