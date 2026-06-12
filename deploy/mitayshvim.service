@@ -1,0 +1,20 @@
+[Unit]
+Description=Small Mitayshvim game server
+After=network.target
+
+[Service]
+User=mitayshvim
+WorkingDirectory=/opt/mitayshvim
+ExecStart=/opt/mitayshvim/mitayshvim -addr 127.0.0.1:8080 -data /opt/mitayshvim/data
+Restart=on-failure
+TimeoutStopSec=15
+
+# hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/mitayshvim/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
