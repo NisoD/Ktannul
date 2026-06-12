@@ -9,11 +9,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Alegreya+Sans:wght@500;700;800&display=swap" rel="stylesheet">
-<script src="vendor/qrcode.js?v=2"></script>
-<script type="importmap">{"imports":{"three":"./vendor/three.module.min.js?v=2"}}</script>
+<script src="/vendor/qrcode.js?v=2"></script>
+<script type="importmap">{"imports":{"three":"/vendor/three.module.min.js?v=2"}}</script>
 <script type="module">
   try {
-    window.board3d = await import('./board3d/board3d.js?v=2'); // ?v busts stale caches
+    window.board3d = await import('/board3d/board3d.js?v=2'); // ?v busts stale caches
   } catch (e) {
     window.board3dFailed = true;
     if (typeof reportErr === 'function') reportErr({ msg: '3D module failed to load: ' + e.message });
@@ -442,6 +442,7 @@
   <h1>LOBBY</h1>
   <div id="joinShare" class="hidden" style="display:flex;flex-direction:column;align-items:center;gap:8px">
     <div class="qrbox" id="qrBox"></div>
+    <div id="roomCode" style="font-weight:800;font-size:18px;letter-spacing:.3em"></div>
     <div id="joinUrl"></div>
     <div class="hint">Friends scan this or type the address — same wifi.</div>
   </div>
@@ -527,12 +528,18 @@ const DEV_NAMES = { knight:'Knight', victory:'Victory Point', roadBuilding:'Road
 const COSTS_TXT = { road:'🌲🧱', settlement:'🌲🧱🐑🌾', city:'🌾🌾⛰️⛰️⛰️', dev:'🐑🌾⛰️' };
 const SC = 60; // board scale
 
+// Room identity comes from the URL: /r/ABC234. No room → landing page.
+const ROOM = (location.pathname.match(/^\/r\/([A-Z2-9]{6})$/) || [])[1];
+if (!ROOM) location.replace('/');
+const API = '/api/r/' + ROOM;
+const SEATS_KEY = 'mv_seats:' + ROOM;
+
 // Seats: every player controlled from THIS device (hot-seat support).
 let seats = [];
-try { seats = JSON.parse(localStorage.getItem('catan_seats') || '[]'); } catch (e) {}
+try { seats = JSON.parse(localStorage.getItem(SEATS_KEY) || '[]'); } catch (e) {}
 let active = 0;
 const tok = () => seats[active] ? seats[active].token : '';
-const saveSeats = () => localStorage.setItem('catan_seats', JSON.stringify(seats));
+const saveSeats = () => localStorage.setItem(SEATS_KEY, JSON.stringify(seats));
 const seatOf = (id) => seats.findIndex(s => s.id === id);
 
 let S = null;          // latest server state
@@ -551,7 +558,7 @@ async function join(inputId = 'nameInput') {
   const inp = document.getElementById(inputId);
   const name = inp.value.trim();
   if (!name) return toast('Enter a name');
-  const r = await fetch('/api/join', { method:'POST', body: JSON.stringify({ name }) });
+  const r = await fetch(API + '/join', { method:'POST', body: JSON.stringify({ name }) });
   const d = await r.json();
   if (!r.ok) return toast(d.error);
   seats.push({ name: d.name, token: d.token, id: d.id });
@@ -563,12 +570,12 @@ async function join(inputId = 'nameInput') {
 
 function connect() {
   if (es) es.close();
-  es = new EventSource('/api/events?token=' + encodeURIComponent(tok()));
+  es = new EventSource(API + '/events?token=' + encodeURIComponent(tok()));
   es.onmessage = (ev) => { S = JSON.parse(ev.data); render(); };
 }
 
 async function api(type, extra = {}) {
-  const r = await fetch('/api/action', {
+  const r = await fetch(API + '/action', {
     method: 'POST',
     body: JSON.stringify(Object.assign({ token: tok(), type }, extra)),
   });
@@ -584,7 +591,7 @@ async function api(type, extra = {}) {
 async function apiHost(type) {
   const i = seatOf(0);
   if (i === -1) return toast('Only the host can do that');
-  const r = await fetch('/api/action', { method:'POST', body: JSON.stringify({ token: seats[i].token, type }) });
+  const r = await fetch(API + '/action', { method:'POST', body: JSON.stringify({ token: seats[i].token, type }) });
   if (!r.ok) toast((await r.json().catch(() => ({ error: 'request failed' }))).error);
 }
 
@@ -623,7 +630,7 @@ function toast(msg, kind, dur = 2600) {
 
 // ---------- tiny synth SFX (no assets) ----------
 let audioCtx = null;
-let muted = localStorage.getItem('catan_mute') === '1';
+let muted = localStorage.getItem('mv_mute') === '1';
 function beep(freq, dur, type = 'sine', gain = 0.12, when = 0) {
   if (muted) return;
   try {
@@ -646,7 +653,7 @@ const sfx = {
 };
 function toggleMute() {
   muted = !muted;
-  localStorage.setItem('catan_mute', muted ? '1' : '0');
+  localStorage.setItem('mv_mute', muted ? '1' : '0');
   drawModal();
 }
 
@@ -727,7 +734,7 @@ function renderClaim() {
 }
 
 async function claimSeat(id) {
-  const r = await fetch('/api/join', { method: 'POST', body: JSON.stringify({ claim: id }) });
+  const r = await fetch(API + '/join', { method: 'POST', body: JSON.stringify({ claim: id }) });
   const d = await r.json();
   if (!r.ok) return toast(d.error);
   if (!seats.some(s => s.id === d.id)) seats.push({ name: d.name, token: d.token, id: d.id });
@@ -738,19 +745,21 @@ async function claimSeat(id) {
 
 function renderLobby() {
   show('lobbyScreen');
-  // QR + address so phones can join without anyone reading out an IP
+  // QR + room link so phones can join without anyone typing a code
   const share = el('joinShare');
-  if (S.joinURL && typeof qrcode === 'function') {
+  const SHARE_URL = location.origin + '/r/' + ROOM;
+  if (typeof qrcode === 'function') {
     share.classList.remove('hidden');
-    if (share.dataset.url !== S.joinURL) {
-      share.dataset.url = S.joinURL;
+    if (share.dataset.url !== SHARE_URL) {
+      share.dataset.url = SHARE_URL;
       try {
         const qr = qrcode(0, 'M');
-        qr.addData(S.joinURL);
+        qr.addData(SHARE_URL);
         qr.make();
         el('qrBox').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0 });
       } catch (e) { el('qrBox').textContent = ''; }
-      el('joinUrl').textContent = S.joinURL;
+      el('joinUrl').textContent = SHARE_URL;
+      el('roomCode').textContent = 'Room code: ' + ROOM;
     }
   }
   el('lobbyList').innerHTML = S.players.map(p =>
@@ -1647,14 +1656,13 @@ function esc(s) {
 
 el('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
 el('addNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join('addNameInput'); });
-localStorage.removeItem('catan_token'); // pre-hot-seat storage key
 if (seats.length) {
   // try to resume our seats from a previous session
-  fetch('/api/join', { method: 'POST', body: JSON.stringify({ token: seats[0].token, resume: true }) })
+  fetch(API + '/join', { method: 'POST', body: JSON.stringify({ token: seats[0].token, resume: true }) })
     .then(r => r.json().then(d => ({ ok: r.ok, d })))
     .then(({ ok, d }) => {
       if (ok && d.token === seats[0].token) { active = 0; }
-      else { localStorage.removeItem('catan_seats'); seats = []; }
+      else { localStorage.removeItem(SEATS_KEY); seats = []; }
       connect(); // even tokenless: public state drives the resume-seat list
     })
     .catch(() => {});
