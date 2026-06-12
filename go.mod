@@ -1,3 +1,3 @@
-module cattan
+module mitayshvim
 
 go 1.26

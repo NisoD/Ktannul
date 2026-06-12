@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"cattan/game"
+	"mitayshvim/game"
 )
 
 //go:embed web
@@ -75,7 +75,7 @@ func main() {
 	mux.HandleFunc("POST /api/action", s.handleAction)
 	mux.HandleFunc("GET /api/events", s.handleEvents)
 
-	fmt.Println("Catan server running.")
+	fmt.Println("Mitayshvim server running.")
 	fmt.Println("Players on the same wifi can join at:")
 	ips := lanIPs()
 	for _, ip := range ips {
