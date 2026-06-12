@@ -1,3 +1,13 @@
 cattan
+mitayshvim
 *.log
 .cattan-state.gob*
+
+# game state snapshots
+data/
+*.gob
+
+# local env / secrets — never committed
+.env
+*.pem
+*.key
