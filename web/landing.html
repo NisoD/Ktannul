@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Small Mitayshvim</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:#0b2239; color:#f1ede3; font-family:system-ui, sans-serif; }
+  .card { background:#13314f; border-radius:16px; padding:32px 28px; width:min(92vw,380px);
+          box-shadow:0 8px 40px rgba(0,0,0,.4); text-align:center; }
+  h1 { margin:0 0 4px; letter-spacing:.08em; }
+  h1 small { display:block; font-size:.45em; opacity:.7; letter-spacing:.3em; }
+  button { width:100%; padding:14px; margin-top:18px; font-size:1.05em; border:0; border-radius:10px;
+           background:#f3a712; color:#222; font-weight:700; cursor:pointer; }
+  button:active { transform:scale(.98); }
+  .or { margin:18px 0 8px; opacity:.6; }
+  input { width:100%; box-sizing:border-box; padding:12px; font-size:1.2em; text-align:center;
+          letter-spacing:.35em; text-transform:uppercase; border-radius:10px; border:1px solid #2a6fdb;
+          background:#0b2239; color:#f1ede3; }
+  .err { color:#ff9d9d; min-height:1.2em; margin-top:10px; font-size:.9em; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>MITAYSHVIM<small>SMALL · ONLINE</small></h1>
+  <button id="create">Create game</button>
+  <div class="or">— or join with a code —</div>
+  <input id="code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC234">
+  <div class="err" id="err"></div>
+</div>
+<script>
+const err = (m) => document.getElementById('err').textContent = m;
+if (new URLSearchParams(location.search).has('missing')) err('That game no longer exists.');
+document.getElementById('create').onclick = async () => {
+  err('');
+  try {
+    const r = await fetch('/api/rooms', { method: 'POST' });
+    const d = await r.json();
+    if (!r.ok) return err(d.error || 'could not create game');
+    location.href = '/r/' + d.code;
+  } catch (e) { err('network error'); }
+};
+const inp = document.getElementById('code');
+inp.addEventListener('input', () => {
+  const v = inp.value.toUpperCase().replace(/[^A-Z2-9]/g, '');
+  inp.value = v;
+  if (v.length === 6) location.href = '/r/' + v;
+});
+</script>
+</body>
+</html>
