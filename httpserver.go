@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -23,23 +24,31 @@ type server struct {
 	hub  *Hub
 	fsys fs.FS // web assets (disk or embedded); may be nil in tests
 
+	globalRL *rateLimiter // all requests per IP: 80 burst, 25/sec (DoS guard)
 	createRL *rateLimiter // room creation: 5 burst, ~1 per min
 	apiRL    *rateLimiter // room-scoped API: 20 burst, 5/sec
 	logRL    *rateLimiter // clientlog: 5 burst, 1 per 10 sec
 
 	sseMu    sync.Mutex
 	sseTotal int
+	ssePerIP map[string]int // live SSE streams per IP (DoS guard)
 }
+
+const maxSSEPerIP = 12
 
 func newServer(hub *Hub, fsys fs.FS) *server {
 	return &server{
 		hub:  hub,
 		fsys: fsys,
+		// Generous enough that a real page load (HTML + vendor + 3D module +
+		// SSE) and active play never trip it, tight enough to blunt a flood.
+		globalRL: newRateLimiter(80, 25),
 		// Burst 5 + 1/min refill: a family on one home IP can retry freely,
 		// but a room-spam loop still stalls fast (global maxRooms backstops).
 		createRL: newRateLimiter(5, 1.0/60),
 		apiRL:    newRateLimiter(20, 5),
 		logRL:    newRateLimiter(5, 0.1),
+		ssePerIP: map[string]int{},
 	}
 }
 
@@ -77,7 +86,19 @@ func (s *server) routes() http.Handler {
 			mux.Handle(p, noCache(assets))
 		}
 	}
-	return securityHeaders(mux)
+	return s.globalLimit(securityHeaders(mux))
+}
+
+// globalLimit is a coarse per-IP request rate limit across every route — a
+// first line against floods, on top of the route-specific limiters.
+func (s *server) globalLimit(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.globalRL.allow(clientIP(r)) {
+			writeJSON(w, 429, map[string]string{"error": "too many requests"})
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 func noCache(h http.Handler) http.Handler {
@@ -188,19 +209,20 @@ func (s *server) handleJoin(room *Room, w http.ResponseWriter, r *http.Request) 
 	var p *game.Player
 	var err error
 	if req.Claim != nil {
-		// Block hijacking a seat that's actively connected — claiming is for
-		// recovering a seat whose player genuinely left (lost device, cleared
-		// storage), not stealing one out from under a live player.
-		if room.seatLive(*req.Claim) {
-			writeJSON(w, 409, map[string]string{"error": "that player is still connected"})
-			return
-		}
-		p, err = room.G.ClaimSeat(*req.Claim)
+		// Claiming recovers a seat whose player genuinely left (lost device,
+		// cleared storage) — never one that's still connected. The liveness
+		// check runs inside ClaimSeat under the game lock, so there's no
+		// window between the check and the token rotation.
+		p, err = room.G.ClaimSeat(*req.Claim, room.seatLive)
 	} else {
 		p, err = room.G.Join(req.Name, req.Token, req.Resume)
 	}
 	if err != nil {
-		writeJSON(w, 400, map[string]string{"error": err.Error()})
+		code := 400
+		if errors.Is(err, game.ErrSeatLive) {
+			code = 409
+		}
+		writeJSON(w, code, map[string]string{"error": err.Error()})
 		return
 	}
 	// Count only genuinely new humans — not reconnects or seat recoveries.
@@ -235,19 +257,26 @@ func (s *server) handleAction(room *Room, w http.ResponseWriter, r *http.Request
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
-func (s *server) sseAcquire() bool {
+func (s *server) sseAcquire(ip string) bool {
 	s.sseMu.Lock()
 	defer s.sseMu.Unlock()
-	if s.sseTotal >= maxSSETotal {
+	if s.sseTotal >= maxSSETotal || s.ssePerIP[ip] >= maxSSEPerIP {
 		return false
 	}
 	s.sseTotal++
+	s.ssePerIP[ip]++
 	return true
 }
 
-func (s *server) sseRelease() {
+func (s *server) sseRelease(ip string) {
 	s.sseMu.Lock()
 	s.sseTotal--
+	if s.ssePerIP[ip] > 0 {
+		s.ssePerIP[ip]--
+		if s.ssePerIP[ip] == 0 {
+			delete(s.ssePerIP, ip)
+		}
+	}
 	s.sseMu.Unlock()
 }
 
@@ -258,11 +287,12 @@ func (s *server) handleEvents(room *Room, w http.ResponseWriter, r *http.Request
 		http.Error(w, "streaming unsupported", 500)
 		return
 	}
-	if !s.sseAcquire() {
-		writeJSON(w, 503, map[string]string{"error": "server busy"})
+	ip := clientIP(r)
+	if !s.sseAcquire(ip) {
+		writeJSON(w, 503, map[string]string{"error": "too many open connections"})
 		return
 	}
-	defer s.sseRelease()
+	defer s.sseRelease(ip)
 
 	kick := make(chan struct{}, 1)
 	if !room.addClient(kick) {

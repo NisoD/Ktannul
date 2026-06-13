@@ -219,10 +219,16 @@ func (g *Game) Join(name, token string, resume bool) (*Player, error) {
 	return p, nil
 }
 
+// ErrSeatLive is returned when a claim targets a seat that's still connected.
+var ErrSeatLive = errors.New("that player is still connected")
+
 // ClaimSeat hands out the credentials for an existing human seat — the
-// recovery path when a device lost its token (new browser, cleared
-// storage, joined via a different hostname). Trusted-LAN tradeoff.
-func (g *Game) ClaimSeat(id int) (*Player, error) {
+// recovery path when a device lost its token (new browser, cleared storage).
+// isLive, if non-nil, is evaluated while holding the game lock: it reports
+// whether the seat currently has a live connection, and a live seat can't be
+// claimed. Passing the check as a predicate (rather than checking before the
+// call) closes the TOCTOU window between "is it live?" and the token rotation.
+func (g *Game) ClaimSeat(id int, isLive func(int) bool) (*Player, error) {
 	g.Mu.Lock()
 	defer g.Mu.Unlock()
 	if g.Phase == PhaseLobby {
@@ -234,6 +240,9 @@ func (g *Game) ClaimSeat(id int) (*Player, error) {
 	p := g.Players[id]
 	if p.IsBot {
 		return nil, errors.New("that seat is a bot")
+	}
+	if isLive != nil && isLive(id) {
+		return nil, ErrSeatLive
 	}
 	// Rotate the token so the previous device loses control — prevents a
 	// claimed seat from being driven from two places at once.

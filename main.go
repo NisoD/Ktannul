@@ -51,6 +51,7 @@ func main() {
 		for range time.Tick(5 * time.Minute) {
 			hub.expire()
 			hub.stats.save()
+			s.globalRL.sweep(time.Hour)
 			s.createRL.sweep(time.Hour)
 			s.apiRL.sweep(time.Hour)
 			s.logRL.sweep(time.Hour)

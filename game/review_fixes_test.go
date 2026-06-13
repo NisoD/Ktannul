@@ -92,12 +92,12 @@ func TestJoinNameRuneTruncation(t *testing.T) {
 
 func TestClaimSeatRules(t *testing.T) {
 	g := newTestGame(t, 8, "a", "b")
-	if _, err := g.ClaimSeat(0); err == nil {
+	if _, err := g.ClaimSeat(0, nil); err == nil {
 		t.Fatal("claim allowed in lobby")
 	}
 	g.beginGame()
 	old := g.Players[0].Token
-	p, err := g.ClaimSeat(0)
+	p, err := g.ClaimSeat(0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

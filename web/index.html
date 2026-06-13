@@ -334,7 +334,7 @@
     100% { opacity: 0; transform: translate(-50%, -230px) scale(.9); }
   }
   #emojiBar {
-    position: fixed; left: 10px; bottom: 10px; z-index: 55;
+    position: fixed; left: 10px; bottom: 64px; z-index: 57;
     display: flex; gap: 4px; flex-wrap: wrap; max-width: 220px;
     background: rgba(11,37,54,.92); border: 1px solid rgba(233,180,76,.2);
     border-radius: 12px; padding: 6px; opacity: 0; pointer-events: none;
@@ -642,9 +642,10 @@ function sendEmoji(e) {
 // animate a reaction once; the seq guard means a stale value on reconnect
 // (or our own echo) never re-fires.
 function checkEmoji() {
-  if (!S || !S.emoji) return;
-  if (lastEmojiSeq < 0) { lastEmojiSeq = S.emoji.seq; return; } // first state: don't replay
-  if (S.emoji.seq <= lastEmojiSeq) return;
+  if (!S) return;
+  // First state: baseline the seq (don't replay a reaction that predates us).
+  if (lastEmojiSeq < 0) { lastEmojiSeq = S.emoji ? S.emoji.seq : 0; return; }
+  if (!S.emoji || S.emoji.seq <= lastEmojiSeq) return;
   lastEmojiSeq = S.emoji.seq;
   const p = (S.players || [])[S.emoji.seat];
   const el = document.createElement('div');
