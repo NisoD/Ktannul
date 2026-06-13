@@ -47,9 +47,10 @@ func main() {
 			}
 		}
 	}()
-	go func() { // janitor: expire idle rooms, sweep limiter maps
+	go func() { // janitor: expire idle rooms, sweep limiter maps, persist stats
 		for range time.Tick(5 * time.Minute) {
 			hub.expire()
+			hub.stats.save()
 			s.createRL.sweep(time.Hour)
 			s.apiRL.sweep(time.Hour)
 			s.logRL.sweep(time.Hour)
@@ -82,4 +83,5 @@ func main() {
 	}
 	hub.stopAll() // stop fanout goroutines so saveAll's snapshots are final
 	hub.saveAll()
+	hub.stats.save()
 }

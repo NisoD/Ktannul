@@ -27,18 +27,37 @@ type Room struct {
 	Code string
 	G    *game.Game
 
-	mu         sync.Mutex
-	clients    map[chan struct{}]bool
-	seatConns  map[int]int // seat ID → live SSE connection count
-	lastActive time.Time
-	done       chan struct{} // closed on expiry; stops the fanout goroutine
-	stopOnce   sync.Once
+	mu          sync.Mutex
+	clients     map[chan struct{}]bool
+	seatConns   map[int]int // seat ID → live SSE connection count
+	lastActive  time.Time
+	done        chan struct{} // closed on expiry; stops the fanout goroutine
+	stopOnce    sync.Once
+	stats       *Stats
+	countedDone bool // guards counting a finished game exactly once
 }
 
 // stop ends the room's fanout goroutine exactly once (idempotent: both
 // expiry and hub shutdown may call it).
 func (r *Room) stop() {
 	r.stopOnce.Do(func() { close(r.done) })
+}
+
+// countFinishOnce records a finished game in stats the first time the room's
+// game reaches the ended phase.
+func (r *Room) countFinishOnce() {
+	if r.stats == nil {
+		return
+	}
+	r.G.Mu.Lock()
+	ended := r.G.Phase == game.PhaseEnded
+	r.G.Mu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if ended && !r.countedDone {
+		r.countedDone = true
+		r.stats.addFinished()
+	}
 }
 
 // seatConnect/seatDisconnect track live presence per seat so an actively
@@ -99,6 +118,7 @@ func (r *Room) fanout(statePath string) {
 			if err := r.G.Save(statePath); err != nil {
 				log.Printf("save room %s: %v", r.Code, err)
 			}
+			r.countFinishOnce()
 			r.mu.Lock()
 			for ch := range r.clients {
 				select {
@@ -118,13 +138,27 @@ type Hub struct {
 	dataDir  string
 	maxRooms int
 	wg       sync.WaitGroup // tracks fanout goroutines
+	stats    *Stats
 }
 
 func newHub(dataDir string) (*Hub, error) {
 	if err := os.MkdirAll(dataDir, 0o755); err != nil {
 		return nil, err
 	}
-	return &Hub{rooms: map[string]*Room{}, dataDir: dataDir, maxRooms: defaultMaxRooms}, nil
+	return &Hub{
+		rooms:    map[string]*Room{},
+		dataDir:  dataDir,
+		maxRooms: defaultMaxRooms,
+		stats:    loadStats(filepath.Join(dataDir, "stats.json")),
+	}, nil
+}
+
+// liveGames counts rooms that currently exist (a game in progress or a lobby
+// waiting to start).
+func (h *Hub) liveGames() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.rooms)
 }
 
 func (h *Hub) path(code string) string { return filepath.Join(h.dataDir, code+".gob") }
@@ -140,7 +174,9 @@ func (h *Hub) create() (*Room, error) {
 		if _, exists := h.rooms[code]; exists {
 			continue
 		}
-		return h.addLocked(code, game.New()), nil
+		r := h.addLocked(code, game.New())
+		h.stats.addGame()
+		return r, nil
 	}
 }
 
@@ -153,6 +189,7 @@ func (h *Hub) addLocked(code string, g *game.Game) *Room {
 		seatConns:  map[int]int{},
 		lastActive: time.Now(),
 		done:       make(chan struct{}),
+		stats:      h.stats,
 	}
 	h.rooms[code] = r
 	h.wg.Add(1)

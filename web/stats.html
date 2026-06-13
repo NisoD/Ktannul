@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Small Mitayshvim — Stats</title>
+<style>
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:#0b2239; color:#f1ede3; font-family:system-ui, sans-serif; }
+  .wrap { text-align:center; width:min(92vw,520px); }
+  h1 { letter-spacing:.08em; margin-bottom:6px; }
+  h1 small { display:block; font-size:.4em; opacity:.6; letter-spacing:.3em; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-top:24px; }
+  .card { background:#13314f; border-radius:14px; padding:24px 16px; box-shadow:0 6px 24px rgba(0,0,0,.35); }
+  .num { font-size:2.6em; font-weight:800; color:#f3a712; }
+  .num.live { color:#2a9d44; }
+  .lbl { margin-top:6px; opacity:.75; font-size:.95em; }
+  a { color:#7fb0ff; display:inline-block; margin-top:26px; }
+  .err { color:#ff9d9d; margin-top:16px; min-height:1.2em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>SMALL MITAYSHVIM<small>STATS</small></h1>
+  <div class="grid">
+    <div class="card"><div class="num live" id="live">—</div><div class="lbl">games live now</div></div>
+    <div class="card"><div class="num" id="done">—</div><div class="lbl">games finished</div></div>
+    <div class="card"><div class="num" id="created">—</div><div class="lbl">games created</div></div>
+    <div class="card"><div class="num" id="players">—</div><div class="lbl">players joined</div></div>
+  </div>
+  <div class="err" id="err"></div>
+  <a href="/">← back to play</a>
+</div>
+<script>
+async function load() {
+  try {
+    const m = await (await fetch('/api/metrics')).json();
+    document.getElementById('live').textContent = m.gamesLive ?? 0;
+    document.getElementById('done').textContent = m.gamesFinished ?? 0;
+    document.getElementById('created').textContent = m.gamesCreated ?? 0;
+    document.getElementById('players').textContent = m.playersJoined ?? 0;
+  } catch (e) { document.getElementById('err').textContent = 'could not load stats'; }
+}
+load();
+setInterval(load, 10000); // refresh live count
+</script>
+</body>
+</html>

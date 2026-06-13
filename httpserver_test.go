@@ -114,6 +114,32 @@ func TestClaimBlockedWhenSeatLive(t *testing.T) {
 	}
 }
 
+func TestMetricsCounts(t *testing.T) {
+	s := testServer(t)
+	do(t, s, "POST", "/api/rooms", "")
+	code := s.hub.snapshot()[0].Code
+	do(t, s, "POST", "/api/r/"+code+"/join", `{"name":"alice"}`)
+	do(t, s, "POST", "/api/r/"+code+"/join", `{"name":"bob"}`)
+
+	w := do(t, s, "GET", "/api/metrics", "")
+	if w.Code != 200 {
+		t.Fatalf("metrics: %d", w.Code)
+	}
+	var m map[string]int64
+	if err := json.Unmarshal(w.Body.Bytes(), &m); err != nil {
+		t.Fatal(err)
+	}
+	if m["gamesCreated"] != 1 {
+		t.Errorf("gamesCreated = %d, want 1", m["gamesCreated"])
+	}
+	if m["playersJoined"] != 2 {
+		t.Errorf("playersJoined = %d, want 2", m["playersJoined"])
+	}
+	if m["gamesLive"] != 1 {
+		t.Errorf("gamesLive = %d, want 1", m["gamesLive"])
+	}
+}
+
 func TestCreateRoomRateLimited(t *testing.T) {
 	s := testServer(t)
 	denied := false

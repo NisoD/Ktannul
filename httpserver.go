@@ -54,10 +54,15 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("POST /api/r/{code}/action", s.withRoom(s.handleAction))
 	mux.HandleFunc("GET /api/r/{code}/events", s.withRoom(s.handleEvents))
 	mux.HandleFunc("POST /api/clientlog", s.handleClientLog)
+	mux.HandleFunc("GET /api/metrics", s.handleMetrics)
 	if s.fsys != nil {
 		mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Cache-Control", "no-cache")
 			http.ServeFileFS(w, r, s.fsys, "landing.html")
+		})
+		mux.HandleFunc("GET /stats", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Cache-Control", "no-cache")
+			http.ServeFileFS(w, r, s.fsys, "stats.html")
 		})
 		mux.HandleFunc("GET /r/{code}", func(w http.ResponseWriter, r *http.Request) {
 			if s.hub.get(r.PathValue("code")) == nil {
@@ -198,8 +203,18 @@ func (s *server) handleJoin(room *Room, w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, 400, map[string]string{"error": err.Error()})
 		return
 	}
+	// Count only genuinely new humans — not reconnects or seat recoveries.
+	if req.Claim == nil && !req.Resume {
+		s.hub.stats.addPlayer()
+	}
 	room.touch()
 	writeJSON(w, 200, map[string]any{"token": p.Token, "id": p.ID, "name": p.Name})
+}
+
+func (s *server) handleMetrics(w http.ResponseWriter, r *http.Request) {
+	m := s.hub.stats.snapshot()
+	m["gamesLive"] = int64(s.hub.liveGames())
+	writeJSON(w, 200, m)
 }
 
 func (s *server) handleAction(room *Room, w http.ResponseWriter, r *http.Request) {
