@@ -465,6 +465,7 @@
     <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
     <button class="primary" style="width:250px;padding:13px" onclick="join()">Join game</button>
     <div class="hint">Enter a name to join this game. 2–4 players.</div>
+    <a href="#" onclick="watchInstead();return false" style="color:var(--muted);font-size:13px">👁 Watch instead</a>
   </div>
 </div>
 
@@ -475,6 +476,7 @@
     <div id="roomCode" style="font-weight:800;font-size:18px;letter-spacing:.3em"></div>
     <div id="joinUrl"></div>
     <div class="hint">Friends scan the QR or enter the room code to join from anywhere.</div>
+    <a href="#" id="watchLink" onclick="copyWatchLink();return false" style="color:var(--muted);font-size:13px">👁 Copy spectator link</a>
   </div>
   <div class="lobby-list" id="lobbyList"></div>
   <div id="lobbyControls" style="display:flex;flex-direction:column;gap:8px;width:250px">
@@ -565,6 +567,7 @@ const ROOM = (location.pathname.match(/^\/r\/([A-Z2-9]{6})$/) || [])[1];
 if (!ROOM) location.replace('/');
 const API = '/api/r/' + ROOM;
 const SEATS_KEY = 'mv_seats:' + ROOM;
+let spectator = new URLSearchParams(location.search).has('watch');
 try { localStorage.setItem('mv_last_room', ROOM); } catch (e) {}
 
 // Seats: every player controlled from THIS device (hot-seat support).
@@ -616,6 +619,21 @@ let lastEmojiSeq = -1;
 })();
 function toggleEmojiBar() {
   document.getElementById('emojiBar').classList.toggle('open');
+}
+
+// switch into read-only spectator mode without a page reload
+function watchInstead() {
+  spectator = true;
+  history.replaceState(null, '', location.pathname + '?watch=1');
+  if (!es) connect();
+  render();
+}
+
+function copyWatchLink() {
+  const url = location.origin + '/r/' + ROOM + '?watch=1';
+  (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject())
+    .then(() => toast('Spectator link copied'))
+    .catch(() => toast(url));
 }
 function sendEmoji(e) {
   document.getElementById('emojiBar').classList.remove('open');
@@ -737,6 +755,7 @@ function show(id) {
 
 function render() {
   if (!S) return;
+  if (spectator) { renderSpectate(); return; }
   const inGame = S.you && S.phase !== 'lobby';
   el('emojiToggle').classList.toggle('show', !!inGame);
   if (!inGame) el('emojiBar').classList.remove('open');
@@ -1399,6 +1418,18 @@ function setMode(m) {
   renderBoard();
 }
 
+// Read-only watcher view: board + players + log, no hand or actions.
+function renderSpectate() {
+  el('emojiToggle').classList.remove('show');
+  if (S.phase === 'lobby') { renderLobby(); return; }
+  show('game');
+  renderBoard();
+  renderPlayers();
+  renderLog();
+  el('hand').innerHTML = '<div class="hint" style="text-align:center;padding:10px">👁 Spectating — watching live, no cards</div>';
+  el('actions').innerHTML = '';
+}
+
 function renderLog() {
   const lg = el('log');
   lg.innerHTML = (S.log || []).slice(-4).map(l => `<div>${esc(l.text)}</div>`).join('');
@@ -1723,7 +1754,9 @@ function esc(s) {
 
 el('nameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join(); });
 el('addNameInput').addEventListener('keydown', e => { if (e.key === 'Enter') join('addNameInput'); });
-if (seats.length) {
+if (spectator) {
+  connect(); // tokenless: read-only public view
+} else if (seats.length) {
   // try to resume our seats from a previous session
   fetch(API + '/join', { method: 'POST', body: JSON.stringify({ token: seats[0].token, resume: true }) })
     .then(r => r.json().then(d => ({ ok: r.ok, d })))
