@@ -1,0 +1,26 @@
+name: Uptime
+
+# Poor man's uptime monitor: GitHub emails the repo owner when a run fails,
+# and the badge in the README doubles as a status indicator.
+# Note: GitHub pauses scheduled workflows after ~60 days without repo activity.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  healthz:
+    runs-on: ubuntu-latest
+    steps:
+      - name: healthz
+        run: |
+          R=$(curl -sS -m 10 https://mitayshvim.duckdns.org/healthz)
+          echo "healthz: $R"
+          test "$R" = "ok"
+      - name: TLS certificate not near expiry
+        run: |
+          END=$(echo | openssl s_client -connect mitayshvim.duckdns.org:443 -servername mitayshvim.duckdns.org 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+          echo "cert expires: $END"
+          END_S=$(date -d "$END" +%s); NOW_S=$(date +%s)
+          test $(( (END_S - NOW_S) / 86400 )) -gt 7

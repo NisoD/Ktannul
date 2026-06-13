@@ -434,7 +434,7 @@
   <div id="joinBox" style="display:flex;flex-direction:column;gap:16px;align-items:center">
     <input id="nameInput" maxlength="16" placeholder="Your name" autocomplete="off">
     <button class="primary" style="width:250px;padding:13px" onclick="join()">Join game</button>
-    <div class="hint">Everyone on the same wifi opens this address to play. 2–4 players.</div>
+    <div class="hint">Enter a name to join this game. 2–4 players.</div>
   </div>
 </div>
 
@@ -444,7 +444,7 @@
     <div class="qrbox" id="qrBox"></div>
     <div id="roomCode" style="font-weight:800;font-size:18px;letter-spacing:.3em"></div>
     <div id="joinUrl"></div>
-    <div class="hint">Friends scan this or type the address — same wifi.</div>
+    <div class="hint">Friends scan the QR or enter the room code to join from anywhere.</div>
   </div>
   <div class="lobby-list" id="lobbyList"></div>
   <div id="lobbyControls" style="display:flex;flex-direction:column;gap:8px;width:250px">
@@ -773,7 +773,7 @@ function renderLobby() {
   el('startBtn').classList.toggle('hidden', !host);
   el('startBtn').disabled = S.players.length < 2;
   el('lobbyHint').textContent = host
-    ? (S.players.length < 2 ? 'Add players on this device, add a 🤖 bot, or wait for others to join over wifi.' : 'Ready when you are!')
+    ? (S.players.length < 2 ? 'Add players on this device, add a 🤖 bot, or wait for friends to join with the code.' : 'Ready when you are!')
     : 'Waiting for the host to start…';
 }
 
