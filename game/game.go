@@ -1061,6 +1061,12 @@ func (g *Game) respondTrade(p *Player, accept bool) error {
 		g.Trade.Rejected = append(g.Trade.Rejected, p.ID)
 		g.logf("%s declines the trade", p.Name)
 	}
+	// Auto-close once everyone else has responded and nobody accepted —
+	// the offerer has nothing to confirm, so don't make them cancel.
+	if len(g.Trade.Accepted) == 0 && len(g.Trade.Rejected) >= len(g.Players)-1 {
+		g.Trade = nil
+		g.logf("trade declined by everyone")
+	}
 	return nil
 }
 
