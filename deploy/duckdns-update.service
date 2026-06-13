@@ -1,0 +1,8 @@
+[Unit]
+Description=Refresh DuckDNS record for mitayshvim
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mitayshvim/duckdns-update.sh

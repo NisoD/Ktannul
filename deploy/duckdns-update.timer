@@ -1,0 +1,10 @@
+[Unit]
+Description=Refresh DuckDNS twice daily so the free domain never lapses
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=12h
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -43,8 +43,38 @@ On the VM:
 
 Create a game in the browser, join from a phone (not on wifi) via the QR.
 
-## 7. Redeploy
+## 7. Auto-redeploy on merge (no secrets)
+
+Pushes to `master` trigger `.github/workflows/release.yml`, which builds the
+ARM64 binary and publishes it to a rolling `latest` GitHub release. The VM
+polls that release every 5 minutes and self-updates. Because the repo is
+public, no SSH key or CI secret is involved.
+
+Install the updater on the VM (once):
+
+    sudo cp deploy/auto-update.sh /opt/mitayshvim/
+    sudo chmod +x /opt/mitayshvim/auto-update.sh
+    sudo cp deploy/mitayshvim-update.service deploy/mitayshvim-update.timer /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now mitayshvim-update.timer
+
+Manual redeploy still works:
+
     GOOS=linux GOARCH=arm64 go build -o mitayshvim . && scp mitayshvim ubuntu@<vm-ip>:~
     ssh ubuntu@<vm-ip> 'sudo systemctl stop mitayshvim && sudo mv ~/mitayshvim /opt/mitayshvim/ && sudo chown mitayshvim:mitayshvim /opt/mitayshvim/mitayshvim && sudo systemctl start mitayshvim'
 
-Running games survive: stop snapshots all rooms, start restores them.
+Running games survive either path: stop snapshots all rooms, start restores them.
+
+## 8. DuckDNS keep-alive
+
+Free DuckDNS domains lapse after ~30 days without an update. A timer refreshes
+it twice a day. Put your DuckDNS token (from duckdns.org, top of the page) in a
+root-only file, then install the timer:
+
+    echo "<your-duckdns-token>" | sudo tee /opt/mitayshvim/duckdns.token >/dev/null
+    sudo chmod 600 /opt/mitayshvim/duckdns.token
+    sudo cp deploy/duckdns-update.sh /opt/mitayshvim/
+    sudo chmod +x /opt/mitayshvim/duckdns-update.sh
+    sudo cp deploy/duckdns-update.service deploy/duckdns-update.timer /etc/systemd/system/
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now duckdns-update.timer

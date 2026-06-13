@@ -1,0 +1,8 @@
+[Unit]
+Description=Mitayshvim auto-update (poll GitHub release, redeploy if changed)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/mitayshvim/auto-update.sh

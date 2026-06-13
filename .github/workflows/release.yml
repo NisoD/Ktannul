@@ -1,0 +1,33 @@
+name: Release
+
+# On every push to master, build the production ARM64 binary and publish it
+# to a rolling "latest" release. The VM polls this release and self-updates
+# (deploy/auto-update.sh) — no SSH keys or secrets in CI.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: build ARM64 binary
+        run: |
+          GOOS=linux GOARCH=arm64 go build -o mitayshvim .
+          echo "${{ github.sha }}" > version.txt
+      - name: publish to rolling 'latest' release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view latest >/dev/null 2>&1 || \
+            gh release create latest --title "latest build" --notes "rolling production build" --target master
+          gh release upload latest mitayshvim version.txt --clobber
