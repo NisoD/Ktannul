@@ -47,6 +47,21 @@ func TestHubCreateGetExpire(t *testing.T) {
 	}
 }
 
+func TestTouchPreventsExpiry(t *testing.T) {
+	h := testHub(t)
+	r, _ := h.create()
+	// Make the room look long-idle, then a touch (as a heartbeat would do)
+	// must rescue it from the next sweep.
+	r.mu.Lock()
+	r.lastActive = time.Now().Add(-2 * gameTTL)
+	r.mu.Unlock()
+	r.touch()
+	h.expire()
+	if h.get(r.Code) == nil {
+		t.Fatal("a freshly-touched room was reaped")
+	}
+}
+
 func TestHubMaxRooms(t *testing.T) {
 	h := testHub(t)
 	h.maxRooms = 2

@@ -307,6 +307,7 @@ func (s *server) handleEvents(room *Room, w http.ResponseWriter, r *http.Request
 		room.seatConnect(seat)
 		defer room.seatDisconnect(seat)
 	}
+	room.touch() // a present client keeps the room from being reaped as idle
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -341,6 +342,7 @@ func (s *server) handleEvents(room *Room, w http.ResponseWriter, r *http.Request
 				return
 			}
 			fl.Flush()
+			room.touch() // keep the room alive while this client stays connected
 		}
 	}
 }

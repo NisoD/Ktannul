@@ -14,10 +14,14 @@ import (
 
 const (
 	defaultMaxRooms = 200
-	lobbyTTL        = 1 * time.Hour
-	gameTTL         = 24 * time.Hour
-	maxSSEPerRoom   = 10
-	maxSSETotal     = 500
+	// A room is reaped once it's been idle this long. "Idle" means no joins,
+	// no actions, and no connected clients — every live SSE stream refreshes
+	// the room via its heartbeat, so a game with anyone present never expires;
+	// only a fully-abandoned room counts down.
+	lobbyTTL      = 5 * time.Minute
+	gameTTL       = 5 * time.Minute
+	maxSSEPerRoom = 10
+	maxSSETotal   = 500
 )
 
 var errServerFull = errors.New("server is full, try again later")

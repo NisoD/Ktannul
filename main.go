@@ -48,7 +48,7 @@ func main() {
 		}
 	}()
 	go func() { // janitor: expire idle rooms, sweep limiter maps, persist stats
-		for range time.Tick(5 * time.Minute) {
+		for range time.Tick(time.Minute) {
 			hub.expire()
 			hub.stats.save()
 			s.globalRL.sweep(time.Hour)
