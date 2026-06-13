@@ -3,9 +3,12 @@ package main
 import (
 	"encoding/json"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"mitayshvim/game"
 )
 
 func testServer(t *testing.T) *server {
@@ -14,6 +17,7 @@ func testServer(t *testing.T) *server {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(h.stopAll)     // stop fanout goroutines before TempDir removal
 	return newServer(h, nil) // nil fsys: API tests don't serve files
 }
 
@@ -81,6 +85,32 @@ func TestNameSanitized(t *testing.T) {
 	}
 	if utf8.RuneCountInString(resp.Name) > maxNameRunes {
 		t.Fatalf("name not truncated: %q", resp.Name)
+	}
+}
+
+func TestClaimBlockedWhenSeatLive(t *testing.T) {
+	s := testServer(t)
+	do(t, s, "POST", "/api/rooms", "")
+	room := s.hub.snapshot()[0]
+	// a real player joins and starts a game (claim only works post-lobby)
+	p, err := room.G.Join("alice", "", false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	room.G.Mu.Lock()
+	room.G.Phase = game.PhaseMain // claim only works after the lobby
+	room.G.Mu.Unlock()
+	room.seatConnect(p.ID) // simulate alice's live SSE stream
+	body := `{"claim":` + strconv.Itoa(p.ID) + `}`
+	w := do(t, s, "POST", "/api/r/"+room.Code+"/join", body)
+	if w.Code != 409 {
+		t.Fatalf("claim of live seat: %d, want 409", w.Code)
+	}
+	// once alice disconnects, the seat can be recovered
+	room.seatDisconnect(p.ID)
+	w = do(t, s, "POST", "/api/r/"+room.Code+"/join", body)
+	if w.Code != 200 {
+		t.Fatalf("claim of disconnected seat: %d %s, want 200", w.Code, w.Body)
 	}
 }
 

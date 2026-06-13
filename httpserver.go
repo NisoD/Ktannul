@@ -183,6 +183,13 @@ func (s *server) handleJoin(room *Room, w http.ResponseWriter, r *http.Request) 
 	var p *game.Player
 	var err error
 	if req.Claim != nil {
+		// Block hijacking a seat that's actively connected — claiming is for
+		// recovering a seat whose player genuinely left (lost device, cleared
+		// storage), not stealing one out from under a live player.
+		if room.seatLive(*req.Claim) {
+			writeJSON(w, 409, map[string]string{"error": "that player is still connected"})
+			return
+		}
 		p, err = room.G.ClaimSeat(*req.Claim)
 	} else {
 		p, err = room.G.Join(req.Name, req.Token, req.Resume)
@@ -248,6 +255,13 @@ func (s *server) handleEvents(room *Room, w http.ResponseWriter, r *http.Request
 		return
 	}
 	defer room.removeClient(kick)
+
+	// Track this seat as live for as long as the stream is open, so its seat
+	// can't be claimed by someone else mid-game.
+	if seat, ok := room.G.SeatByToken(token); ok {
+		room.seatConnect(seat)
+		defer room.seatDisconnect(seat)
+	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")

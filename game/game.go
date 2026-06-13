@@ -166,6 +166,21 @@ func (g *Game) playerByToken(tok string) *Player {
 	return nil
 }
 
+// SeatByToken returns the seat ID a token controls, or (-1, false) if the
+// token matches no player. Used by the server to track which seats have a
+// live connection.
+func (g *Game) SeatByToken(tok string) (int, bool) {
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+	if tok == "" {
+		return -1, false
+	}
+	if p := g.playerByToken(tok); p != nil {
+		return p.ID, true
+	}
+	return -1, false
+}
+
 // Join adds a player in the lobby, or resumes an existing player by token.
 // With resume=true it never creates a new player.
 func (g *Game) Join(name, token string, resume bool) (*Player, error) {

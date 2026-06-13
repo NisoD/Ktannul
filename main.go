@@ -80,5 +80,6 @@ func main() {
 	if err := srv.Shutdown(shutCtx); err != nil {
 		srv.Close() // SSE streams never end on their own — cut them
 	}
+	hub.stopAll() // stop fanout goroutines so saveAll's snapshots are final
 	hub.saveAll()
 }

@@ -14,6 +14,7 @@ func testHub(t *testing.T) *Hub {
 	if err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(h.stopAll) // stop fanout goroutines before TempDir removal
 	return h
 }
 

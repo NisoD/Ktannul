@@ -29,8 +29,41 @@ type Room struct {
 
 	mu         sync.Mutex
 	clients    map[chan struct{}]bool
+	seatConns  map[int]int // seat ID → live SSE connection count
 	lastActive time.Time
 	done       chan struct{} // closed on expiry; stops the fanout goroutine
+	stopOnce   sync.Once
+}
+
+// stop ends the room's fanout goroutine exactly once (idempotent: both
+// expiry and hub shutdown may call it).
+func (r *Room) stop() {
+	r.stopOnce.Do(func() { close(r.done) })
+}
+
+// seatConnect/seatDisconnect track live presence per seat so an actively
+// connected player can't have their seat claimed out from under them.
+func (r *Room) seatConnect(id int) {
+	r.mu.Lock()
+	r.seatConns[id]++
+	r.mu.Unlock()
+}
+
+func (r *Room) seatDisconnect(id int) {
+	r.mu.Lock()
+	if r.seatConns[id] > 0 {
+		r.seatConns[id]--
+		if r.seatConns[id] == 0 {
+			delete(r.seatConns, id)
+		}
+	}
+	r.mu.Unlock()
+}
+
+func (r *Room) seatLive(id int) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.seatConns[id] > 0
 }
 
 func (r *Room) touch() {
@@ -84,6 +117,7 @@ type Hub struct {
 	rooms    map[string]*Room
 	dataDir  string
 	maxRooms int
+	wg       sync.WaitGroup // tracks fanout goroutines
 }
 
 func newHub(dataDir string) (*Hub, error) {
@@ -116,12 +150,29 @@ func (h *Hub) addLocked(code string, g *game.Game) *Room {
 		Code:       code,
 		G:          g,
 		clients:    map[chan struct{}]bool{},
+		seatConns:  map[int]int{},
 		lastActive: time.Now(),
 		done:       make(chan struct{}),
 	}
 	h.rooms[code] = r
-	go r.fanout(h.path(code))
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		r.fanout(h.path(code))
+	}()
 	return r
+}
+
+// stopAll ends every room's fanout and waits for the goroutines to exit.
+// After it returns, no goroutine will touch the data dir — used at graceful
+// shutdown and in tests to avoid leaking goroutines.
+func (h *Hub) stopAll() {
+	h.mu.Lock()
+	for _, r := range h.rooms {
+		r.stop()
+	}
+	h.mu.Unlock()
+	h.wg.Wait()
 }
 
 // get returns nil for invalid or unknown codes — uniformly.
@@ -154,7 +205,7 @@ func (h *Hub) expire() {
 		if idle <= ttl {
 			continue
 		}
-		close(r.done)
+		r.stop()
 		delete(h.rooms, code)
 		// Known benign race: if fanout is mid-Save when we remove, the file
 		// can reappear and the room resurrects on next boot — where it just
