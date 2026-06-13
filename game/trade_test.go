@@ -62,3 +62,22 @@ func TestTradeStaysOpenIfSomeoneAccepts(t *testing.T) {
 		t.Fatal("trade closed even though one player accepted — offerer should still choose")
 	}
 }
+
+func TestEmojiReaction(t *testing.T) {
+	g, a, b, _ := mainGame3(t)
+	if err := g.react(a, "🎲"); err != nil {
+		t.Fatal(err)
+	}
+	if g.LastEmoji == nil || g.LastEmoji.Seat != a.ID || g.LastEmoji.Emoji != "🎲" || g.LastEmoji.Seq != 1 {
+		t.Fatalf("first reaction: %+v", g.LastEmoji)
+	}
+	if err := g.react(b, "🔥"); err != nil {
+		t.Fatal(err)
+	}
+	if g.LastEmoji.Seq != 2 || g.LastEmoji.Seat != b.ID {
+		t.Fatalf("second reaction seq/seat wrong: %+v", g.LastEmoji)
+	}
+	if err := g.react(a, "<script>"); err == nil {
+		t.Fatal("non-allowlisted reaction accepted")
+	}
+}

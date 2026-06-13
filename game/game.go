@@ -125,6 +125,8 @@ type Game struct {
 	RollCounts [13]int // dice histogram for end-of-game stats
 	JoinURL    string  // LAN address shown in the lobby (set at startup)
 
+	LastEmoji *EmojiBurst // most recent reaction; clients animate on Seq change
+
 	Version int
 	Changed chan struct{} // signaled (non-blocking) on every state change
 }
@@ -267,6 +269,34 @@ type Action struct {
 	Give     map[string]int `json:"give"`
 	Get      map[string]int `json:"get"`
 	Amounts  map[string]int `json:"amounts"`
+	Emoji    string         `json:"emoji"`
+}
+
+// EmojiBurst is a transient reaction. Seq increments per burst so clients
+// animate a reaction once and ignore the stale value they get on reconnect.
+type EmojiBurst struct {
+	Seat  int    `json:"seat"`
+	Emoji string `json:"emoji"`
+	Seq   int    `json:"seq"`
+}
+
+// allowedEmoji is a fixed set — keeps reactions fun but bounded, and means
+// no arbitrary user text reaches other clients.
+var allowedEmoji = map[string]bool{
+	"👍": true, "👎": true, "😂": true, "😮": true,
+	"😢": true, "🎉": true, "🔥": true, "🤔": true, "❤️": true, "🎲": true,
+}
+
+func (g *Game) react(p *Player, emoji string) error {
+	if !allowedEmoji[emoji] {
+		return errors.New("unknown reaction")
+	}
+	seq := 1
+	if g.LastEmoji != nil {
+		seq = g.LastEmoji.Seq + 1
+	}
+	g.LastEmoji = &EmojiBurst{Seat: p.ID, Emoji: emoji, Seq: seq}
+	return nil
 }
 
 func (g *Game) Do(token string, a Action) error {
@@ -327,6 +357,8 @@ func (g *Game) dispatch(p *Player, a Action) error {
 		return g.confirmTrade(p, a.Player)
 	case "cancelTrade":
 		return g.cancelTrade(p)
+	case "emoji":
+		return g.react(p, a.Emoji)
 	case "endTurn":
 		return g.endTurn(p)
 	}

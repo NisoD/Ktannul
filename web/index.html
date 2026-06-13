@@ -320,6 +320,36 @@
     100% { opacity: 0; transform: translate(-50%, calc(-50% - 110px)) scale(.85); }
   }
 
+  /* ---------- emoji reactions ---------- */
+  .emoji-float {
+    position: fixed; left: 50%; bottom: 90px; z-index: 60;
+    font-size: 46px; pointer-events: none; transform: translateX(-50%);
+    animation: emojiFloat 2.2s ease-out forwards;
+    filter: drop-shadow(0 0 10px var(--ec, rgba(0,0,0,.5)));
+  }
+  @keyframes emojiFloat {
+    0%   { opacity: 0; transform: translate(-50%, 0) scale(.5); }
+    12%  { opacity: 1; transform: translate(-50%, -20px) scale(1.15); }
+    70%  { opacity: 1; transform: translate(-50%, -150px) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -230px) scale(.9); }
+  }
+  #emojiBar {
+    position: fixed; left: 10px; bottom: 10px; z-index: 55;
+    display: flex; gap: 4px; flex-wrap: wrap; max-width: 220px;
+    background: rgba(11,37,54,.92); border: 1px solid rgba(233,180,76,.2);
+    border-radius: 12px; padding: 6px; opacity: 0; pointer-events: none;
+    transform: translateY(8px); transition: opacity .15s, transform .15s;
+  }
+  #emojiBar.open { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  #emojiBar button { width: 38px; height: 38px; padding: 0; font-size: 21px; background: var(--panel2); border: 0; border-radius: 9px; cursor: pointer; }
+  #emojiToggle {
+    position: fixed; left: 10px; bottom: 10px; z-index: 56;
+    width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer;
+    font-size: 22px; background: rgba(11,37,54,.92); border: 1px solid rgba(233,180,76,.2);
+    display: none;
+  }
+  #emojiToggle.show { display: block; }
+
   /* ---------- trade ---------- */
   .trade-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .tradebox { background: var(--panel2); border-radius: 12px; padding: 9px 10px; border: 1px solid rgba(233,180,76,.14); }
@@ -491,6 +521,8 @@
 
 <div id="overlay" class="hidden"><div class="modal" id="modalBody"></div></div>
 <div id="fx"></div>
+<button id="emojiToggle" onclick="toggleEmojiBar()">😀</button>
+<div id="emojiBar"></div>
 <div id="toast"></div>
 
 <script>
@@ -572,7 +604,38 @@ async function join(inputId = 'nameInput') {
 function connect() {
   if (es) es.close();
   es = new EventSource(API + '/events?token=' + encodeURIComponent(tok()));
-  es.onmessage = (ev) => { S = JSON.parse(ev.data); render(); };
+  es.onmessage = (ev) => { S = JSON.parse(ev.data); checkEmoji(); render(); };
+}
+
+// ---- emoji reactions ----
+const EMOJIS = ['👍','👎','😂','😮','😢','🎉','🔥','🤔','❤️','🎲'];
+let lastEmojiSeq = -1;
+(function buildEmojiBar() {
+  const bar = document.getElementById('emojiBar');
+  bar.innerHTML = EMOJIS.map(e => `<button onclick="sendEmoji('${e}')">${e}</button>`).join('');
+})();
+function toggleEmojiBar() {
+  document.getElementById('emojiBar').classList.toggle('open');
+}
+function sendEmoji(e) {
+  document.getElementById('emojiBar').classList.remove('open');
+  api('emoji', { emoji: e });
+}
+// animate a reaction once; the seq guard means a stale value on reconnect
+// (or our own echo) never re-fires.
+function checkEmoji() {
+  if (!S || !S.emoji) return;
+  if (lastEmojiSeq < 0) { lastEmojiSeq = S.emoji.seq; return; } // first state: don't replay
+  if (S.emoji.seq <= lastEmojiSeq) return;
+  lastEmojiSeq = S.emoji.seq;
+  const p = (S.players || [])[S.emoji.seat];
+  const el = document.createElement('div');
+  el.className = 'emoji-float';
+  el.textContent = S.emoji.emoji;
+  el.style.setProperty('--ec', (p && p.color) || '#888');
+  el.style.left = (44 + Math.random() * 12) + '%';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2300);
 }
 
 async function api(type, extra = {}) {
@@ -674,6 +737,9 @@ function show(id) {
 
 function render() {
   if (!S) return;
+  const inGame = S.you && S.phase !== 'lobby';
+  el('emojiToggle').classList.toggle('show', !!inGame);
+  if (!inGame) el('emojiBar').classList.remove('open');
   if (!S.you) { show('joinScreen'); renderClaim(); return; }
   if (S.phase === 'lobby') { renderLobby(); return; }
   // hot-seat: jump to whichever local seat must act

@@ -36,6 +36,7 @@ type View struct {
 	Gains            []Gain         `json:"gains,omitempty"`
 	JoinURL          string         `json:"joinURL,omitempty"`
 	RollCounts       []int          `json:"rollCounts,omitempty"` // ended phase only
+	Emoji            *EmojiBurst    `json:"emoji,omitempty"`
 }
 
 type YouView struct {
@@ -102,6 +103,7 @@ func (g *Game) viewLocked(token string) *View {
 		SetupPlayer: -1,
 		DevDeckLeft: len(g.DevDeck),
 		Gains:       g.LastGains,
+		Emoji:       g.LastEmoji,
 	}
 	if g.Phase == PhaseLobby {
 		v.JoinURL = g.JoinURL
