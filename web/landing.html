@@ -25,13 +25,24 @@
 <div class="card">
   <h1>MITAYSHVIM<small>SMALL · ONLINE</small></h1>
   <button id="create">Create game</button>
+  <button id="rejoin" style="display:none;background:#2a6fdb;color:#fff"></button>
   <div class="or">— or join with a code —</div>
   <input id="code" maxlength="6" autocomplete="off" spellcheck="false" placeholder="ABC234">
   <div class="err" id="err"></div>
 </div>
 <script>
 const err = (m) => document.getElementById('err').textContent = m;
-if (new URLSearchParams(location.search).has('missing')) err('That game no longer exists.');
+if (new URLSearchParams(location.search).has('missing')) {
+  err('That game no longer exists.');
+  localStorage.removeItem('mv_last_room'); // don't offer rejoining a dead room
+}
+const last = localStorage.getItem('mv_last_room');
+if (last && /^[A-Z2-9]{6}$/.test(last)) {
+  const rj = document.getElementById('rejoin');
+  rj.style.display = '';
+  rj.textContent = 'Rejoin game ' + last;
+  rj.onclick = () => location.href = '/r/' + last;
+}
 document.getElementById('create').onclick = async () => {
   err('');
   try {

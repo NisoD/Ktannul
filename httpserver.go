@@ -23,7 +23,7 @@ type server struct {
 	hub  *Hub
 	fsys fs.FS // web assets (disk or embedded); may be nil in tests
 
-	createRL *rateLimiter // room creation: 3 burst, ~1 per 5 min
+	createRL *rateLimiter // room creation: 5 burst, ~1 per min
 	apiRL    *rateLimiter // room-scoped API: 20 burst, 5/sec
 	logRL    *rateLimiter // clientlog: 5 burst, 1 per 10 sec
 
@@ -33,9 +33,11 @@ type server struct {
 
 func newServer(hub *Hub, fsys fs.FS) *server {
 	return &server{
-		hub:      hub,
-		fsys:     fsys,
-		createRL: newRateLimiter(3, 1.0/300),
+		hub:  hub,
+		fsys: fsys,
+		// Burst 5 + 1/min refill: a family on one home IP can retry freely,
+		// but a room-spam loop still stalls fast (global maxRooms backstops).
+		createRL: newRateLimiter(5, 1.0/60),
 		apiRL:    newRateLimiter(20, 5),
 		logRL:    newRateLimiter(5, 0.1),
 	}
@@ -122,7 +124,7 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 
 func (s *server) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 	if !s.createRL.allow(clientIP(r)) {
-		writeJSON(w, 429, map[string]string{"error": "too many games created, wait a few minutes"})
+		writeJSON(w, 429, map[string]string{"error": "you've created several games quickly — wait a minute, or rejoin one with its code"})
 		return
 	}
 	room, err := s.hub.create()
