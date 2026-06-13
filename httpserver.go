@@ -33,8 +33,8 @@ type server struct {
 
 func newServer(hub *Hub, fsys fs.FS) *server {
 	return &server{
-		hub:      hub,
-		fsys:     fsys,
+		hub:  hub,
+		fsys: fsys,
 		// Burst 5 + 1/min refill: a family on one home IP can retry freely,
 		// but a room-spam loop still stalls fast (global maxRooms backstops).
 		createRL: newRateLimiter(5, 1.0/60),
