@@ -232,9 +232,17 @@ function roundRect(g, x, y, w, h, r) {
 
 function disposeStatic() {
   if (!staticGroup) return;
+  const cached = Object.values(texCache);
   staticGroup.traverse(o => {
     if (o.geometry && o.geometry !== hexGeo && o.geometry !== shelfGeo && o.geometry !== tokenGeo) o.geometry.dispose();
-    if (o.material && o.material.map && !Object.values(texCache).includes(o.material.map)) o.material.map.dispose();
+    // material may be a single material or an array; a map may be a shared
+    // cached texture (don't dispose) or a non-disposable value — guard both,
+    // otherwise a throw here kills the whole 3D board on the first rematch.
+    const mats = o.material ? (Array.isArray(o.material) ? o.material : [o.material]) : [];
+    for (const mat of mats) {
+      const map = mat && mat.map;
+      if (map && typeof map.dispose === 'function' && !cached.includes(map)) map.dispose();
+    }
   });
   scene.remove(staticGroup);
   staticGroup = null;

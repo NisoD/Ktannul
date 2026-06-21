@@ -13,7 +13,7 @@
 <script type="importmap">{"imports":{"three":"/vendor/three.module.min.js?v=2"}}</script>
 <script type="module">
   try {
-    window.board3d = await import('/board3d/board3d.js?v=2'); // ?v busts stale caches
+    window.board3d = await import('/board3d/board3d.js?v=3'); // ?v busts stale caches
   } catch (e) {
     window.board3dFailed = true;
     if (typeof reportErr === 'function') reportErr({ msg: '3D module failed to load: ' + e.message });
