@@ -12,7 +12,9 @@ Oracle's Ubuntu images ship iptables REJECT rules beyond the security list:
     sudo netfilter-persistent save
 
 ## 3. DNS
-Free hostname: https://www.duckdns.org → point mitayshvim.duckdns.org at the VM's public IP.
+Free hostname: https://www.duckdns.org → point your subdomain(s) at the VM's
+public IP. This deploy serves two spellings — `mitayshvim.duckdns.org` (primary)
+and `mityashvim.duckdns.org` (alias) — which live in separate DuckDNS accounts.
 
 ## 4. Caddy (TLS + reverse proxy)
     sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https curl
@@ -40,6 +42,7 @@ On the VM:
 
 ## 6. Verify
     curl https://mitayshvim.duckdns.org/healthz   # → ok
+    curl https://mityashvim.duckdns.org/healthz   # → ok (alias)
 
 Create a game in the browser, join from a phone (not on wifi) via the QR.
 
@@ -68,11 +71,13 @@ Running games survive either path: stop snapshots all rooms, start restores them
 ## 8. DuckDNS keep-alive
 
 Free DuckDNS domains lapse after ~30 days without an update. A timer refreshes
-it twice a day. Put your DuckDNS token (from duckdns.org, top of the page) in a
-root-only file, then install the timer:
+them twice a day. The two spellings live in separate DuckDNS accounts, so each
+needs its own token (from duckdns.org, top of the page) in its own root-only
+file. `duckdns-update.sh` maps domain → token file; edit the map if names change.
 
-    echo "<your-duckdns-token>" | sudo tee /opt/mitayshvim/duckdns.token >/dev/null
-    sudo chmod 600 /opt/mitayshvim/duckdns.token
+    echo "<a-y-token>" | sudo tee /opt/mitayshvim/duckdns.token    >/dev/null  # mitayshvim
+    echo "<y-a-token>" | sudo tee /opt/mitayshvim/duckdns-ya.token >/dev/null  # mityashvim
+    sudo chmod 600 /opt/mitayshvim/duckdns.token /opt/mitayshvim/duckdns-ya.token
     sudo cp deploy/duckdns-update.sh /opt/mitayshvim/
     sudo chmod +x /opt/mitayshvim/duckdns-update.sh
     sudo cp deploy/duckdns-update.service deploy/duckdns-update.timer /etc/systemd/system/

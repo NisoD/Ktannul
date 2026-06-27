@@ -4,7 +4,7 @@ A hex-based settlement and trading board game for 2–4 players (plus bots).
 Create a game, share the 6-character room code, and play from any device —
 phone or desktop, anywhere.
 
-### ▶ Play now: **[mitayshvim.duckdns.org](https://mitayshvim.duckdns.org)**
+### ▶ Play now: **[mitayshvim.duckdns.org](https://mitayshvim.duckdns.org)** (alias: [mityashvim.duckdns.org](https://mityashvim.duckdns.org))
 
 [![CI](https://github.com/NisoD/Ktannul/actions/workflows/ci.yml/badge.svg)](https://github.com/NisoD/Ktannul/actions/workflows/ci.yml)
 [![Uptime](https://github.com/NisoD/Ktannul/actions/workflows/uptime.yml/badge.svg)](https://github.com/NisoD/Ktannul/actions/workflows/uptime.yml)

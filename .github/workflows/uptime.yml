@@ -15,12 +15,16 @@ jobs:
     steps:
       - name: healthz
         run: |
-          R=$(curl -sS -m 10 https://mitayshvim.duckdns.org/healthz)
-          echo "healthz: $R"
-          test "$R" = "ok"
+          for H in mitayshvim.duckdns.org mityashvim.duckdns.org; do
+            R=$(curl -sS -m 10 "https://$H/healthz")
+            echo "healthz $H: $R"
+            test "$R" = "ok"
+          done
       - name: TLS certificate not near expiry
         run: |
-          END=$(echo | openssl s_client -connect mitayshvim.duckdns.org:443 -servername mitayshvim.duckdns.org 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
-          echo "cert expires: $END"
-          END_S=$(date -d "$END" +%s); NOW_S=$(date +%s)
-          test $(( (END_S - NOW_S) / 86400 )) -gt 7
+          for H in mitayshvim.duckdns.org mityashvim.duckdns.org; do
+            END=$(echo | openssl s_client -connect "$H:443" -servername "$H" 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+            echo "cert $H expires: $END"
+            END_S=$(date -d "$END" +%s); NOW_S=$(date +%s)
+            test $(( (END_S - NOW_S) / 86400 )) -gt 7
+          done

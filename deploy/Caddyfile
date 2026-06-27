@@ -1,5 +1,5 @@
 # deploy/Caddyfile — replace the hostname with your DNS name (e.g. DuckDNS)
-mitayshvim.duckdns.org {
+mitayshvim.duckdns.org, mityashvim.duckdns.org {
 	encode gzip
 	reverse_proxy 127.0.0.1:8080
 }
